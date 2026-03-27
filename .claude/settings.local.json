@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(npx typeorm-ts-node-commonjs:*)",
+      "Bash(npx jest:*)",
+      "Bash(npm install:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/api)",
+      "Bash(timeout 20 npx nest start)",
+      "Bash(curl -s -X POST http://localhost:3000/api/auth/login -H \"Content-Type: application/json\" -d '{\"\"\"\"username\"\"\"\":\"\"\"\"admin\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"admin123\"\"\"\"}')",
+      "Bash(curl:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MjMxZTI3OC04NTE3LTQzNDctYTViNS1iZTIyYjRjY2MzNmUiLCJ1c2VybmFtZSI6ImFkbWluIiwicHJpdmlsZWdlcyI6WyJWSUVXX1BPIiwiQ1JFQVRFX1BPIiwiVVBEQVRFX1BPIiwiQVBQUk9WRV9QTyIsIkVYUE9SVF9QTyIsIlZJRVdfSU5WRU5UT1JZIiwiUkVDRUlWRV9JTkJPVU5EIiwiU0hJUF9PVVRCT1VORCIsIkVYUE9SVF9JTlZFTlRPUlkiLCJNQU5BR0VfUFJPRFVDVCIsIk1BTkFHRV9TVVBQTElFUiIsIk1BTkFHRV9NQVNURVJfREFUQSIsIklNUE9SVF9NQVNURVJfREFUQSIsIkVYUE9SVF9NQVNURVJfREFUQSIsIk1BTkFHRV9VU0VSIiwiTUFOQUdFX1JPTEUiLCJNQU5BR0VfT1JHQU5JWkFUSU9OIiwiTUFOQUdFX0VNUExPWUVFIiwiTUFOQUdFX1RNUyIsIk1BTkFHRV9WRUhJQ0xFIiwiTUFOQUdFX0lOQk9VTkQiLCJNQU5BR0VfSU5WRU5UT1JZIiwiTUFOQUdFX09VVEJPVU5EIiwiVklFV19VU0VSUyIsIlZJRVdfUk9MRVMiLCJWSUVXX0VNUExPWUVFUyIsIlZJRVdfUFJPSkVDVFMiLCJNQU5BR0VfUFJPSkVDVFMiXSwiaWF0IjoxNzc0NDEzNTU5LCJleHAiOjE3NzQ0OTk5NTl9.dizEQ99r1F2dXMMbWXoLDGCRORbFMAq34mietux_NBY\")",
+      "Bash(node -e \":*)",
+      "Bash(xargs grep:*)",
+      "Bash(python:*)",
+      "Bash(start:*)",
+      "Bash(python3:*)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npx tsx:*)",
+      "Bash(sort -u echo \"\" echo \"--- RolesPage.tsx ---\" echo \"Components:\" grep -oP '\\(?<=<\\)[A-Z][a-zA-Z]+' \"C:/Users/Admin/SH ERP/wms-frontend/src/pages/RolesPage.tsx\")",
+      "Bash(sort -u echo \"\" echo \"--- PermissionMatrixDialog.tsx ---\" echo \"Components:\" grep -oP '\\(?<=<\\)[A-Z][a-zA-Z]+' \"C:/Users/Admin/SH ERP/wms-frontend/src/features/role/ui/PermissionMatrixDialog.tsx\")",
+      "Bash(node _fix-matrix.mjs)",
+      "Bash(rm _fix-matrix.mjs)",
+      "Bash(grep -c '\\\\\\\\\\\\\\\\u[0-9a-fA-F]\\\\{4\\\\}' \"C:/Users/Admin/SH ERP/wms-frontend/src/features/role/ui/PermissionMatrixDialog.tsx\")",
+      "Bash(grep -rn '\\\\\\\\u[0-9a-fA-F]\\\\{4\\\\}' \"C:/Users/Admin/SH ERP/wms-frontend/src/\" --include=\"*.tsx\" --include=\"*.ts\")"
+    ]
+  }
+}

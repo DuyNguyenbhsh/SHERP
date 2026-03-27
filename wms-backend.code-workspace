@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"name": "wms-backend",
+			"path": "../wms-backend"
+		},
+		{
+			"path": "../wms-frontend"
+		}
+	],
+	"settings": {}
+}
