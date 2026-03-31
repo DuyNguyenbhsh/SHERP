@@ -1,0 +1,46 @@
+#!/usr/bin/env sh
+
+echo ""
+echo "╔══════════════════════════════════════════════════╗"
+echo "║  SH ERP — Pre-commit Quality Gate               ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo ""
+
+# ── Step 1: Pre-flight Check (.env, DB, lint auto-fix, type-check) ──
+echo "▶ [1/3] Pre-flight Check..."
+npm run check
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: Pre-flight check failed (missing .env or DB unreachable)."
+  exit 1
+fi
+
+# ── Step 2: Frontend TypeScript Type-check (STRICT — zero tolerance) ──
+echo ""
+echo "▶ [2/3] Frontend Type-check (zero tolerance)..."
+npm run type-check --workspace=wms-frontend
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: TypeScript type errors found in frontend."
+  echo "   Run: npm run type-check --workspace=wms-frontend"
+  exit 1
+fi
+echo "   ✅ Frontend type-check — PASS"
+
+# ── Step 3: Backend Build (compile check) ──
+echo ""
+echo "▶ [3/3] Backend Build (compile check)..."
+npm run build --workspace=wms-backend 2>&1
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: Backend build failed."
+  echo "   Run: npm run build --workspace=wms-backend"
+  exit 1
+fi
+echo "   ✅ Backend build — PASS"
+
+echo ""
+echo "══════════════════════════════════════════════════"
+echo "✅ All checks passed — Commit allowed."
+echo "══════════════════════════════════════════════════"
+echo ""

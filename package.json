@@ -2,10 +2,30 @@
   "name": "sh-erp",
   "version": "1.0.0",
   "private": true,
-  "workspaces": ["wms-backend", "wms-frontend"],
+  "workspaces": [
+    "wms-backend",
+    "wms-frontend"
+  ],
   "scripts": {
     "dev:backend": "npm run start:dev --workspace=wms-backend",
     "dev:frontend": "npm run dev --workspace=wms-frontend",
-    "dev": "concurrently -c \"cyan.bold,magenta.bold\" -n \"BACKEND,FRONTEND\" \"npm run dev:backend\" \"npm run dev:frontend\""
+    "dev": "concurrently -c \"cyan.bold,magenta.bold\" -n \"BACKEND,FRONTEND\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "check": "node scripts/pre-flight-check.mjs",
+    "start-safe": "npm run check && npm run dev",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "wms-frontend/src/**/*.{ts,tsx}": [
+      "eslint --fix"
+    ],
+    "wms-backend/src/**/*.ts": [
+      "eslint --fix"
+    ]
+  },
+  "devDependencies": {
+    "chalk": "^5.6.2",
+    "husky": "^9.1.7",
+    "is-port-reachable": "^4.0.0",
+    "lint-staged": "^16.4.0"
   }
 }
