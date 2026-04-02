@@ -1,11 +1,11 @@
 services:
+  # === BACKEND (NestJS API) ===
   - type: web
     name: sh-erp-backend
     runtime: node
     region: singapore
-    rootDir: wms-backend
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm run migration:run && node dist/main.js
+    buildCommand: npm install --include=dev && npm run build:backend
+    startCommand: cd wms-backend && npx typeorm-ts-node-commonjs migration:run -d src/typeorm-data-source.ts && node dist/main.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -20,3 +20,22 @@ services:
       - key: FRONTEND_URL
         sync: false
     healthCheckPath: /api
+
+  # === FRONTEND (React Static Site) ===
+  - type: web
+    name: sh-erp-frontend
+    runtime: static
+    region: singapore
+    buildCommand: npm install --include=dev && npm run build:frontend
+    staticPublishPath: wms-frontend/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
