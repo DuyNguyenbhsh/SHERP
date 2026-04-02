@@ -4,7 +4,7 @@ services:
     name: sh-erp-backend
     runtime: node
     region: singapore
-    buildCommand: rm -rf node_modules package-lock.json && npm install --include=dev && npm run build:backend
+    buildCommand: rm -rf node_modules wms-backend/node_modules wms-frontend/node_modules package-lock.json && npm install --include=dev && npm run build:backend
     startCommand: cd wms-backend && npx typeorm-ts-node-commonjs migration:run -d src/typeorm-data-source.ts && node dist/main.js
     envVars:
       - key: NODE_ENV
@@ -26,7 +26,7 @@ services:
     name: sh-erp-frontend
     runtime: static
     region: singapore
-    buildCommand: rm -rf node_modules package-lock.json && npm install --include=dev && npm run build:frontend
+    buildCommand: rm -rf node_modules wms-backend/node_modules wms-frontend/node_modules package-lock.json && npm install --include=dev && npm run build:frontend
     staticPublishPath: wms-frontend/dist
     headers:
       - path: /*
