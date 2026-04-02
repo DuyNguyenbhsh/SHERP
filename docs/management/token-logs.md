@@ -43,6 +43,10 @@
 | 2026-03-27 21:45 | ALL | Phase 1 Finalization & Phase 2 Bridge | ~60k | ~20k | ~80k | 5 tasks: approval chain, system_settings, audit UI, migration #24, completion report |
 | 2026-03-27 22:30 | DEV+TEST | Emergency UI Fix — Unicode + Action Buttons | ~40k | ~15k | ~55k | Fix \u escape bug, add Edit/Delete/Suspend, 27/27 selector PASS |
 | 2026-03-28 00:00 | ALL | Excel Export Fix + Users/Roles CRUD + Permission Matrix | ~80k | ~25k | ~105k | Excel 27KB OK, UsersPage actions, RolesPage matrix dialog, self-protection, 19/19 PASS |
+| 2026-03-30 21:00 | DEV | Syntax Fix — EditUserDialog.tsx Unicode escape repair | ~15k | ~5k | ~20k | Rewrite file via Node script, fix backtick/template literal, 0 \u escapes remain |
+| 2026-03-30 21:15 | SA | Data Integrity — Delete user employee check | ~5k | ~2k | ~7k | Error message updated to "Không thể xóa tài khoản đã gán nhân sự", HTTP 400 |
+| 2026-03-30 21:30 | SA+DEV | Pre-flight Check v2 — Infrastructure script | ~30k | ~12k | ~42k | 5 checks: .env, NeonDB, Lint+Auto-fix, TypeScript, Port. chalk+is-port-reachable. Self-healing eslint --fix verified |
+| 2026-03-30 22:30 | SA+DEV | Role CRUD + Excel + SUPER_ADMIN Protection | ~50k | ~20k | ~70k | Backend: update/toggle/delete/excel endpoints, SUPER_ADMIN guard. Frontend: CreateRoleDialog, EditRoleDialog, RolesPage full CRUD+TableActions, useRoleActions hooks |
 
 ---
 

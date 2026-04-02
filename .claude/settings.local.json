@@ -25,7 +25,28 @@
       "Bash(node _fix-matrix.mjs)",
       "Bash(rm _fix-matrix.mjs)",
       "Bash(grep -c '\\\\\\\\\\\\\\\\u[0-9a-fA-F]\\\\{4\\\\}' \"C:/Users/Admin/SH ERP/wms-frontend/src/features/role/ui/PermissionMatrixDialog.tsx\")",
-      "Bash(grep -rn '\\\\\\\\u[0-9a-fA-F]\\\\{4\\\\}' \"C:/Users/Admin/SH ERP/wms-frontend/src/\" --include=\"*.tsx\" --include=\"*.ts\")"
+      "Bash(grep -rn '\\\\\\\\u[0-9a-fA-F]\\\\{4\\\\}' \"C:/Users/Admin/SH ERP/wms-frontend/src/\" --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(bash \"C:/Users/Admin/SH ERP/wms-backend/scripts/wait-for-backend.sh\" 3000 10)",
+      "Bash(node _write-dialog.cjs)",
+      "Bash(rm _write-dialog.cjs)",
+      "Bash(ls \"C:/Users/Admin/SH ERP/wms-backend/src/users/\"*.spec.ts)",
+      "Bash(bash \"C:/Users/Admin/SH ERP/wms-backend/scripts/wait-for-backend.sh\" 3000 5)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5174\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(node _write-users-page.cjs)",
+      "Bash(rm _write-users-page.cjs)",
+      "Bash(find 'C:/Users/Admin/SH ERP/wms-frontend/src/pages' -type f -name *.tsx)",
+      "Bash(grep -r \"EditUserDialog\\\\|CreateUserDialog\" 'C:/Users/Admin/SH ERP/wms-frontend/src' --include=*.tsx --include=*.ts)",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const c=fs.readFileSync\\(''wms-frontend/src/features/user/ui/EditUserDialog.tsx'',''utf8''\\); console.log\\(c.substring\\(c.indexOf\\(''onSuccess''\\),c.indexOf\\(''onSuccess''\\)+80\\)\\)\")",
+      "Bash(node -e \"const fs=require\\(''fs''\\); const c=fs.readFileSync\\(''wms-frontend/src/features/user/ui/EditUserDialog.tsx'',''utf8''\\); const lines=c.split\\(''\\\\n''\\); console.log\\(''Line 79 char codes:''\\); for\\(let i=0;i<lines[78].length;i++\\){const ch=lines[78].charCodeAt\\(i\\); if\\(ch>127||ch===96||ch===92||ch===36\\) console.log\\(i,ch,String.fromCharCode\\(ch\\)\\)}\")",
+      "Bash(node -c scripts/pre-flight-check.mjs)",
+      "Bash(find '/c/Users/Admin/SH ERP/wms-frontend/src' -type f \\\\\\(-name *menu* -o -name *nav* -o -name *routes* -o -name *config* \\\\\\))",
+      "Bash(npx kill-port:*)",
+      "Bash(node -e \"const { Client } = require\\(''pg''\\); const c = new Client\\(process.env.DATABASE_URL || ''postgresql://neondb_owner:npg_Yv4Jr0GgfjnL@ep-shiny-credit-aie1gxhv-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require''\\); c.connect\\(\\).then\\(\\(\\) => c.query\\(''SELECT NOW\\(\\)''\\)\\).then\\(r => { console.log\\(''DB OK:'', r.rows[0].now\\); c.end\\(\\); }\\).catch\\(e => { console.error\\(''DB FAIL:'', e.message\\); process.exit\\(1\\); }\\)\")",
+      "Bash(node scripts/fix-unicode.mjs)",
+      "Bash(echo \"const x = ''''Duy\\\\u1EC7t'''';\")",
+      "Bash(npx eslint:*)"
     ]
   }
 }

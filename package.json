@@ -10,8 +10,15 @@
     "dev:backend": "npm run start:dev --workspace=wms-backend",
     "dev:frontend": "npm run dev --workspace=wms-frontend",
     "dev": "concurrently -c \"cyan.bold,magenta.bold\" -n \"BACKEND,FRONTEND\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:backend": "npm run build --workspace=wms-backend",
+    "build:frontend": "npm run build --workspace=wms-frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "start:prod": "npm run start:prod --workspace=wms-backend",
+    "db:migrate:prod": "npm run migration:run --workspace=wms-backend",
     "check": "node scripts/pre-flight-check.mjs",
     "start-safe": "npm run check && npm run dev",
+    "db:backup": "bash scripts/db-backup.sh",
+    "db:clean": "node scripts/db-clean.mjs",
     "prepare": "husky"
   },
   "lint-staged": {
