@@ -1,0 +1,59 @@
+name: Daily Database Backup
+
+on:
+  schedule:
+    # 00:00 UTC moi ngay (07:00 Vietnam)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Cho phep chay thu bang tay
+
+env:
+  RETENTION_DAYS: 30
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run pg_dump backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          chmod +x scripts/db-backup.sh
+          bash scripts/db-backup.sh
+
+      - name: Upload backup as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backups/backup_*.sql.gz
+          retention-days: 30
+
+      - name: Push to db-backups branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Fetch or create the db-backups branch
+          git fetch origin db-backups 2>/dev/null || true
+          git checkout db-backups 2>/dev/null || git checkout --orphan db-backups
+
+          # Clean working tree, keep only backups
+          git rm -rf --cached . 2>/dev/null || true
+          mkdir -p backups
+
+          # Copy new backup
+          cp -f backups/backup_*.sql.gz backups/ 2>/dev/null || true
+
+          # Cleanup old backups (>30 days)
+          find backups -name "backup_*.sql.gz" -type f -mtime +${RETENTION_DAYS} -delete 2>/dev/null || true
+
+          # Commit and push
+          git add backups/
+          git commit -m "backup: $(date -u +%Y-%m-%d)" --allow-empty || true
+          git push origin db-backups --force

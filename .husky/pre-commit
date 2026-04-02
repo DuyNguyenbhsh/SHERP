@@ -6,7 +6,23 @@ echo "║  SH ERP — Pre-commit Quality Gate               ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo ""
 
+# ── Step 0: Block secrets (.env, credentials) ──
+echo "▶ [0/3] Scanning for secrets..."
+SECRETS=$(git diff --cached --name-only | grep -iE '\.env$|\.env\.|credentials|\.pem$|\.key$|secret' || true)
+if [ -n "$SECRETS" ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: Secret files detected in staging area!"
+  echo ""
+  echo "   Files:"
+  echo "$SECRETS" | sed 's/^/     ⛔ /'
+  echo ""
+  echo "   Run: git reset HEAD <file> to unstage."
+  exit 1
+fi
+echo "   ✅ No secrets — PASS"
+
 # ── Step 1: Pre-flight Check (.env, DB, lint auto-fix, type-check) ──
+echo ""
 echo "▶ [1/3] Pre-flight Check..."
 npm run check
 if [ $? -ne 0 ]; then
