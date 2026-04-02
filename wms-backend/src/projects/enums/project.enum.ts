@@ -1,0 +1,14 @@
+export enum ProjectStage {
+  PLANNING = 'PLANNING',
+  PERMITTING = 'PERMITTING',
+  CONSTRUCTION = 'CONSTRUCTION',
+  MANAGEMENT = 'MANAGEMENT',
+}
+
+export enum ProjectStatus {
+  DRAFT = 'DRAFT',
+  ACTIVE = 'ACTIVE',
+  ON_HOLD = 'ON_HOLD',
+  COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
+}

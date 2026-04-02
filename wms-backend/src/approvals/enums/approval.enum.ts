@@ -1,0 +1,27 @@
+export enum ApprovalEntityType {
+  PROJECT_BUDGET = 'PROJECT_BUDGET',
+  PROJECT_STAGE = 'PROJECT_STAGE',
+  OUTBOUND_ORDER = 'OUTBOUND_ORDER',
+  PURCHASE_ORDER = 'PURCHASE_ORDER',
+  GENERAL = 'GENERAL',
+}
+
+export enum ApprovalRequestStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELED = 'CANCELED',
+}
+
+export enum ApprovalStepStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  SKIPPED = 'SKIPPED',
+}
+
+export enum ApprovalAction {
+  APPROVE = 'APPROVE',
+  REJECT = 'REJECT',
+}

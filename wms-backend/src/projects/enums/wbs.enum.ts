@@ -1,0 +1,6 @@
+export enum WbsStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
+}

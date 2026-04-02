@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(npm run:*)",
+      "Bash(npx concurrently:*)",
+      "Bash(for dir:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./hooks/read_hook.js"
+          }
+        ]
+      }
+    ]
+  }
+}

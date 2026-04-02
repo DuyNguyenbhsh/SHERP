@@ -1,0 +1,26 @@
+---
+name: nestjs-api-standard
+description: Tiêu chuẩn viết API cho NestJS. Tự động kích hoạt khi được yêu cầu tạo mới, chỉnh sửa Controller, Service, hoặc luồng xử lý API.
+---
+
+# Tiêu chuẩn Code API NestJS của SH-GROUP
+
+Để đảm bảo tính toàn vẹn dữ liệu cho các luồng nghiệp vụ ERP/WMS phức tạp, mọi API phải tuân thủ nghiêm ngặt các quy tắc sau:
+
+### 1. Luôn sử dụng DTO (Data Transfer Object)
+- Mọi request có chứa Payload (POST, PUT, PATCH) hoặc Query params phức tạp đều **BẮT BUỘC** phải có file DTO riêng biệt (đuôi `.dto.ts`).
+- Tuyệt đối không sử dụng kiểu `any` hoặc `interface` thuần túy cho Request Body.
+
+### 2. Validation dữ liệu đầu vào (class-validator)
+- Bắt buộc sử dụng các decorator từ thư viện `class-validator` cho tất cả các thuộc tính trong DTO (ví dụ: `@IsString()`, `@IsNotEmpty()`, `@IsOptional()`, `@IsUUID()`, `@IsEnum()`).
+- Đối với các trường ngày tháng hoặc số lượng (quan trọng trong WMS/TMS), phải kết hợp `@Type(() => Date)` hoặc `@Type(() => Number)` từ `class-transformer` để ép kiểu dữ liệu chuẩn xác trước khi đưa vào Service.
+
+### 3. Xử lý lỗi (Exception Handling) & Trả về
+- Không bao giờ được ném trực tiếp lỗi của Database (ví dụ: `QueryFailedError` của PostgreSQL/TypeORM) ra ngoài Frontend. Điều này vi phạm bảo mật nghiêm trọng.
+- Tại tầng Service, dùng `try/catch`. Nếu có lỗi nghiệp vụ, hãy ném ra các Error của NestJS (như `BadRequestException`, `NotFoundException`).
+- Format chuẩn bắt buộc phải bọc lại thành đối tượng: 
+  `{ status: boolean, message: string, data: any }`
+
+### 4. Controller mỏng - Service dày
+- Controller chỉ làm nhiệm vụ: Hứng Request -> Validate (đã có DTO lo) -> Gọi Service -> Trả Response.
+- Toàn bộ logic nghiệp vụ (như check tồn kho, tính toán lộ trình TMS, phân quyền) phải nằm gọn trong tầng Service.
