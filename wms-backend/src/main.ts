@@ -92,8 +92,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  await app.listen(port);
-  console.log(`🚀 Backend đang chạy tại: http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Backend đang chạy tại: http://0.0.0.0:${port}`);
   console.log(`📖 Swagger UI: http://localhost:${port}/docs`);
 }
 bootstrap();
