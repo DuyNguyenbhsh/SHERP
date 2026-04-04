@@ -1,0 +1,42 @@
+# Dependencies (will be installed in container)
+node_modules
+wms-backend/node_modules
+wms-frontend/node_modules
+
+# Build outputs
+wms-backend/dist
+wms-frontend/dist
+
+# Git
+.git
+.gitignore
+
+# IDE & OS
+.vscode
+.idea
+*.swp
+Thumbs.db
+.DS_Store
+
+# Environment (secrets must be passed via docker env)
+.env
+wms-backend/.env
+wms-frontend/.env
+
+# Documentation & CI
+docs
+*.md
+!wms-backend/package.json
+!wms-frontend/package.json
+
+# Testing
+coverage
+wms-backend/test
+wms-backend/coverage
+
+# Claude / AI
+.claude
+.mcp.json
+
+# Husky (not needed in container)
+.husky
