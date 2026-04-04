@@ -34,5 +34,9 @@
     "husky": "^9.1.7",
     "is-port-reachable": "^4.0.0",
     "lint-staged": "^16.4.0"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.57.1",
+    "lightningcss-linux-x64-gnu": "^1.31.1"
   }
 }
