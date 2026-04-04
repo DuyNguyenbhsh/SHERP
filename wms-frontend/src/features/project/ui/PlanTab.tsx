@@ -51,7 +51,7 @@ import type { PlanStatus } from '@/entities/project-plan'
 // ── Helpers ──
 
 function vnd(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return Number(v).toLocaleString('vi-VN') + ' ₫'
 }
 

@@ -322,8 +322,8 @@ export function WorkflowConfigPage(): React.JSX.Element {
     if (filterModule && (cfg.module_code || '') !== filterModule) return false
     if (filterThreshold) {
       const thresh = fmtThreshold(cfg)
-      if (filterThreshold === 'has' && thresh === '\u2014') return false
-      if (filterThreshold === 'none' && thresh !== '\u2014') return false
+      if (filterThreshold === 'has' && thresh === '—') return false
+      if (filterThreshold === 'none' && thresh !== '—') return false
     }
     return true
   })
@@ -551,7 +551,7 @@ export function WorkflowConfigPage(): React.JSX.Element {
                                     {'Điều kiện'}
                                   </p>
                                   <div className="flex flex-wrap gap-1.5">
-                                    {fmtThreshold(cfg) !== '\u2014' ? (
+                                    {fmtThreshold(cfg) !== '—' ? (
                                       <>
                                         <Badge variant="secondary" className="text-xs font-normal">
                                           {'Ngưỡng: '}

@@ -23,10 +23,10 @@
   },
   "lint-staged": {
     "wms-frontend/src/**/*.{ts,tsx}": [
-      "eslint --fix"
+      "npx --workspace=wms-frontend eslint --fix"
     ],
     "wms-backend/src/**/*.ts": [
-      "eslint --fix"
+      "npx --workspace=wms-backend eslint --fix"
     ]
   },
   "devDependencies": {

@@ -70,7 +70,7 @@ function GanttChart({ tasks, criticalIds }: { tasks: ProjectTaskItem[]; critical
     for (const t of tasks) {
       if (t.start_date) min = Math.min(min, new Date(t.start_date).getTime())
     }
-    return min === Infinity ? Date.now() : min
+    return min === Infinity ? 0 : min
   }, [tasks])
 
   const chartData = useMemo(
@@ -111,7 +111,8 @@ function GanttChart({ tasks, criticalIds }: { tasks: ProjectTaskItem[]; critical
           <Tooltip
             content={({ active, payload }) => {
               if (!active || !payload?.[1]) return null
-              const d = payload[1].payload as (typeof chartData)[0]
+              const entry = payload[1] as { payload: (typeof chartData)[0] }
+              const d = entry.payload
               return (
                 <div className="rounded bg-white border shadow-lg px-3 py-2 text-xs">
                   <p className="font-semibold">{d.name}</p>
@@ -160,7 +161,13 @@ function ResourceSummary({ tasks }: { tasks: ProjectTaskItem[] }) {
     // Simple peak calculation
     const dayMap = new Map<number, number>()
     for (const t of tasks) {
-      if (t.early_start != null && t.early_finish != null && t.planned_labor > 0) {
+      if (
+        t.early_start !== null &&
+        t.early_start !== undefined &&
+        t.early_finish !== null &&
+        t.early_finish !== undefined &&
+        t.planned_labor > 0
+      ) {
         for (let d = t.early_start; d < t.early_finish; d++) {
           dayMap.set(d, (dayMap.get(d) ?? 0) + t.planned_labor)
         }

@@ -1,10 +1,20 @@
-import { useMemo, useState, useCallback, useRef, useEffect } from 'react'
+import {
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import {
   ReactFlow,
   type Node,
   type Edge,
   type NodeTypes,
   type NodeProps,
+  type OnNodesChange,
+  type OnEdgesChange,
   Background,
   Controls,
   MiniMap,
@@ -17,6 +27,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from '@dagrejs/dagre'
+import type { GraphLabel, NodeLabel, EdgeLabel } from '@dagrejs/dagre'
+import type { AxiosError } from 'axios'
 import {
   Building2,
   Store,
@@ -240,24 +252,24 @@ const nodeTypes: NodeTypes = { orgNode: OrgNodeComponent, projectNode: ProjectNo
 // ══════════════════════════════════════════════════════
 
 function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
-  const g = new dagre.graphlib.Graph()
-  g.setDefaultEdgeLabel(() => ({}))
+  const g = new dagre.graphlib.Graph<GraphLabel, NodeLabel, EdgeLabel>()
+  g.setDefaultEdgeLabel(() => ({}) as EdgeLabel)
   g.setGraph({ rankdir: 'TB', ranksep: 80, nodesep: 50, edgesep: 20 })
 
   for (const node of nodes) {
     const w = node.type === 'projectNode' ? PROJECT_NODE_W : NODE_W
     const h = node.type === 'projectNode' ? PROJECT_NODE_H : NODE_H
-    g.setNode(node.id, { width: w, height: h })
+    g.setNode(node.id, { width: w, height: h } as NodeLabel)
   }
   for (const edge of edges) g.setEdge(edge.source, edge.target)
 
   dagre.layout(g)
 
   return nodes.map((node) => {
-    const pos = g.node(node.id)
+    const pos: NodeLabel = g.node(node.id)
     const w = node.type === 'projectNode' ? PROJECT_NODE_W : NODE_W
     const h = node.type === 'projectNode' ? PROJECT_NODE_H : NODE_H
-    return { ...node, position: { x: pos.x - w / 2, y: pos.y - h / 2 } }
+    return { ...node, position: { x: (pos.x ?? 0) - w / 2, y: (pos.y ?? 0) - h / 2 } }
   })
 }
 
@@ -281,7 +293,10 @@ function DetailSidebar({
   const [search, setSearch] = useState('')
 
   // Reset search when selection changes
-  useEffect(() => setSearch(''), [org?.id, project?.id])
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(''), 0)
+    return () => clearTimeout(id)
+  }, [org?.id, project?.id])
 
   if (!org && !project) return null
 
@@ -615,17 +630,20 @@ function OrgDialog({
   const [orgType, setOrgType] = useState<OrgType>('CORPORATE_DEPT')
 
   useEffect(() => {
-    if (state?.mode === 'edit' && state.defaults) {
-      setCode(state.defaults.code)
-      setName(state.defaults.name)
-      setDesc(state.defaults.description)
-      setOrgType(state.defaults.orgType)
-    } else {
-      setCode('')
-      setName('')
-      setDesc('')
-      setOrgType('CORPORATE_DEPT')
-    }
+    const id = setTimeout(() => {
+      if (state?.mode === 'edit' && state.defaults) {
+        setCode(state.defaults.code)
+        setName(state.defaults.name)
+        setDesc(state.defaults.description)
+        setOrgType(state.defaults.orgType)
+      } else {
+        setCode('')
+        setName('')
+        setDesc('')
+        setOrgType('CORPORATE_DEPT')
+      }
+    }, 0)
+    return () => clearTimeout(id)
   }, [state])
 
   if (!state) return null
@@ -652,7 +670,12 @@ function OrgDialog({
             toast.success('Cập nhật thành công')
             onClose()
           },
-          onError: (err: any) => toast.error(err.response?.data?.message || 'Cập nhật thất bại'),
+          onError: (err: Error) => {
+            const msg =
+              (err as AxiosError<{ message?: string }>).response?.data?.message ??
+              'Cập nhật thất bại'
+            toast.error(msg)
+          },
         },
       )
     } else {
@@ -669,7 +692,12 @@ function OrgDialog({
             toast.success('Tạo đơn vị thành công')
             onClose()
           },
-          onError: (err: any) => toast.error(err.response?.data?.message || 'Tạo đơn vị thất bại'),
+          onError: (err: Error) => {
+            const msg =
+              (err as AxiosError<{ message?: string }>).response?.data?.message ??
+              'Tạo đơn vị thất bại'
+            toast.error(msg)
+          },
         },
       )
     }
@@ -781,8 +809,9 @@ function DeleteConfirmDialog({
         toast.success(`Đã xóa "${orgName}"`)
         onClose()
       },
-      onError: (err: any) => {
-        const msg = err.response?.data?.message || 'Xóa thất bại'
+      onError: (err: Error) => {
+        const msg =
+          (err as AxiosError<{ message?: string }>).response?.data?.message ?? 'Xóa thất bại'
         setServerError(msg)
         toast.error(msg)
       },
@@ -1077,13 +1106,22 @@ function OrgChartInner(): React.JSX.Element {
     handleProjectClick,
   ])
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutEdges)
+  const nodesState = useNodesState<Node>(layoutNodes)
+  const nodes: Node[] = nodesState[0]
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const setNodes: Dispatch<SetStateAction<Node[]>> = nodesState[1]
+  const onNodesChange: OnNodesChange<Node> = nodesState[2]
+
+  const edgesState = useEdgesState<Edge>(layoutEdges)
+  const edges: Edge[] = edgesState[0]
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const setEdges: Dispatch<SetStateAction<Edge[]>> = edgesState[1]
+  const onEdgesChange: OnEdgesChange<Edge> = edgesState[2]
 
   useEffect(() => {
     setNodes(layoutNodes)
     setEdges(layoutEdges)
-    setTimeout(() => fitView({ padding: 0.15 }), 80)
+    setTimeout(() => void fitView({ padding: 0.15 }), 80)
   }, [layoutNodes, layoutEdges, setNodes, setEdges, fitView])
 
   // CRUD handlers
@@ -1175,7 +1213,7 @@ function OrgChartInner(): React.JSX.Element {
             variant="outline"
             size="sm"
             className="h-7 gap-1 text-xs"
-            onClick={() => fitView({ padding: 0.15 })}
+            onClick={() => void fitView({ padding: 0.15 })}
           >
             <Maximize className="h-3 w-3" /> Zoom to fit
           </Button>

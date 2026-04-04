@@ -64,6 +64,20 @@ export default defineConfig([
       // General quality
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
+      'no-var': 'error',
+      eqeqeq: ['error', 'always'],
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/await-thenable': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+    },
+  },
+  // Shadcn UI generated files — allow non-component exports (variants, helpers)
+  {
+    files: ['src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

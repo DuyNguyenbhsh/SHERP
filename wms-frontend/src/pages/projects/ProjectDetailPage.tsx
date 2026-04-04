@@ -105,7 +105,7 @@ const statusVariant: Record<ProjectStatus, 'default' | 'secondary' | 'outline' |
 }
 
 function vnd(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return Number(v).toLocaleString('vi-VN') + ' ₫'
 }
 
@@ -576,7 +576,7 @@ function OverviewTab({ projectId }: { projectId: string }) {
               icon={<Ruler className="h-4 w-4" />}
               label="GFA"
               value={
-                project.gfa_m2 != null
+                project.gfa_m2 !== null && project.gfa_m2 !== undefined
                   ? `${Number(project.gfa_m2).toLocaleString('vi-VN')} m²`
                   : null
               }
@@ -584,7 +584,9 @@ function OverviewTab({ projectId }: { projectId: string }) {
             <InfoRow
               icon={<Banknote className="h-4 w-4" />}
               label="Ngân sách tổng"
-              value={project.budget != null ? vnd(project.budget) : null}
+              value={
+                project.budget !== null && project.budget !== undefined ? vnd(project.budget) : null
+              }
             />
             <InfoRow
               icon={<User className="h-4 w-4" />}

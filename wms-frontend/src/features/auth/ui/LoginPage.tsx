@@ -63,11 +63,13 @@ export function LoginPage(): React.JSX.Element {
       .catch((err: unknown) => {
         if (isAxiosError(err)) {
           const status = err.response?.status
+          const data = err.response?.data as Record<string, unknown> | undefined
+          const nestedData = data?.data as Record<string, unknown> | undefined
           const serverMsg =
-            typeof err.response?.data?.data?.message === 'string'
-              ? err.response.data.data.message
-              : typeof err.response?.data?.message === 'string'
-                ? err.response.data.message
+            typeof nestedData?.message === 'string'
+              ? nestedData.message
+              : typeof data?.message === 'string'
+                ? data.message
                 : ''
 
           if (status === 401) {

@@ -57,7 +57,7 @@ import type { ProjectRequestStatus } from '@/entities/project-request'
 // ── Helpers ──
 
 function vnd(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return Number(v).toLocaleString('vi-VN') + ' ₫'
 }
 

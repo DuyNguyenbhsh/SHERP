@@ -237,7 +237,12 @@ export function PermissionMatrixDialog({
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    if (assignedCodes) setSelected(new Set(assignedCodes))
+    if (assignedCodes) {
+      const timer = setTimeout(() => {
+        setSelected(new Set(assignedCodes))
+      }, 0)
+      return () => clearTimeout(timer)
+    }
   }, [assignedCodes])
 
   const isLoading = loadingAll || loadingAssigned

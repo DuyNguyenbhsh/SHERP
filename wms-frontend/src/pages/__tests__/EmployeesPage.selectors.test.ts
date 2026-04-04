@@ -30,15 +30,9 @@ console.log('\n══ EmployeesPage UI Selector Verification ══\n')
 
 console.log('[Vietnamese Text]')
 assert('Title: "Nhân sự"', source.includes('Nhân sự'))
-assert(
-  'Subtitle: "Quản lý nhân viên"',
-  source.includes('Quản lý nhân viên'),
-)
+assert('Subtitle: "Quản lý nhân viên"', source.includes('Quản lý nhân viên'))
 assert('Tab: "Danh sách"', source.includes('Danh sách'))
-assert(
-  'Tab: "Sơ đồ tổ chức"',
-  source.includes('Sơ đồ tổ chức'),
-)
+assert('Tab: "Sơ đồ tổ chức"', source.includes('Sơ đồ tổ chức'))
 assert('Header: "Trạng thái"', source.includes('Trạng thái'))
 assert('Header: "Thao tác"', source.includes('Thao tác'))
 assert('No raw \\\\u escapes in rendered text', !source.match(/['">]\s*\\u[0-9a-fA-F]{4}/))
@@ -52,10 +46,7 @@ assert('Suspend: PauseCircle icon', source.includes('PauseCircle'))
 assert('Suspend: title "Tạm ngưng"', source.includes('Tạm ngưng'))
 assert('Delete button: data-testid="btn-delete"', source.includes('data-testid="btn-delete"'))
 assert('Delete: Trash2 icon', source.includes('Trash2'))
-assert(
-  'Delete: title "Xóa nhân viên"',
-  source.includes('Xóa nhân viên'),
-)
+assert('Delete: title "Xóa nhân viên"', source.includes('Xóa nhân viên'))
 assert('Audit button: data-testid="btn-audit"', source.includes('data-testid="btn-audit"'))
 assert('Audit: History icon', source.includes('History'))
 
@@ -63,10 +54,7 @@ console.log('\n[Dialog Components]')
 assert('CreateEmployeeDialog', source.includes('CreateEmployeeDialog'))
 assert('EditEmployeeDialog', source.includes('EditEmployeeDialog'))
 assert('AuditLogDialog', source.includes('AuditLogDialog'))
-assert(
-  'Confirm: "Xác nhận xóa nhân viên"',
-  source.includes('Xác nhận xóa nhân viên'),
-)
+assert('Confirm: "Xác nhận xóa nhân viên"', source.includes('Xác nhận xóa nhân viên'))
 
 console.log('\n[Status Badges]')
 assert('Đang làm việc', source.includes('Đang làm việc'))

@@ -59,7 +59,9 @@ function formatChanges(log: AuditLogEntry): string {
       const label = fieldLabels[key] ?? key
       const oldVal = val.old ?? '(trống)'
       const newVal = val.new ?? '(trống)'
-      parts.push(`${label}: ${String(oldVal)} → ${String(newVal)}`)
+      const fmtVal = (v: unknown): string =>
+        v === null || typeof v !== 'object' ? String(v) : JSON.stringify(v)
+      parts.push(`${label}: ${fmtVal(oldVal)} → ${fmtVal(newVal)}`)
     }
 
     return parts.length > 0 ? parts.join('; ') : 'Không có thay đổi chi tiết'

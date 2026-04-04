@@ -56,7 +56,7 @@ export function useUpdateWbs() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: { wbs_id: string; project_id: string; [k: string]: unknown }) => {
-      const { wbs_id, project_id, ...body } = payload
+      const { wbs_id, project_id: _project_id, ...body } = payload
       const { data } = await api.patch<ApiResponse<WbsNode>>(`/projects/wbs/${wbs_id}`, body)
       return data.data
     },

@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useState } from 'react'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
@@ -54,7 +54,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps):
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -66,12 +66,9 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps):
     },
   })
 
-  const selectedEmpId = watch('employee_id')
+  const selectedEmpId = useWatch({ control, name: 'employee_id' })
 
-  const selectedEmployee = useMemo(
-    () => unlinkedEmployees?.find((e) => e.id === selectedEmpId) ?? null,
-    [unlinkedEmployees, selectedEmpId],
-  )
+  const selectedEmployee = unlinkedEmployees?.find((e) => e.id === selectedEmpId) ?? null
 
   const onSubmit = (values: FormValues): void => {
     setSubmitting(true)

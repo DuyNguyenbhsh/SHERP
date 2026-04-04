@@ -88,11 +88,17 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
         stage: project.stage,
         status: project.status,
         location: project.location ?? '',
-        gfa_m2: project.gfa_m2 != null ? Number(project.gfa_m2) : ('' as unknown as undefined),
+        gfa_m2:
+          project.gfa_m2 !== null && project.gfa_m2 !== undefined
+            ? Number(project.gfa_m2)
+            : ('' as unknown as undefined),
         investor_id: project.investor_id ?? '',
         manager_id: project.manager_id ?? '',
         department_id: project.department_id ?? '',
-        budget: project.budget != null ? Number(project.budget) : ('' as unknown as undefined),
+        budget:
+          project.budget !== null && project.budget !== undefined
+            ? Number(project.budget)
+            : ('' as unknown as undefined),
       })
     }
   }, [project, reset])
@@ -105,7 +111,8 @@ export function EditProjectDialog({ project, onClose }: EditProjectDialogProps) 
   const detectSensitiveChanges = (values: FormValues): string[] => {
     const changed: string[] = []
     const budgetVal = typeof values.budget === 'number' ? values.budget : null
-    const oldBudget = project.budget != null ? Number(project.budget) : null
+    const oldBudget =
+      project.budget !== null && project.budget !== undefined ? Number(project.budget) : null
     if (budgetVal !== oldBudget) changed.push('Ngân sách')
 
     if ((values.manager_id || '') !== (project.manager_id ?? '')) changed.push('Giám đốc DA')

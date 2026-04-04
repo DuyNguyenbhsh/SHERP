@@ -172,7 +172,7 @@ function FolderDocuments({
                   </TableCell>
                   <TableCell>{formatDate(doc.expiry_date)}</TableCell>
                   <TableCell>
-                    {days != null ? (
+                    {days !== null && days !== undefined ? (
                       <span
                         className={`text-sm font-medium ${days <= 0 ? 'text-red-600' : days <= 30 ? 'text-amber-600' : 'text-green-600'}`}
                       >

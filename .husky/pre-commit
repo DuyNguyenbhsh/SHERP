@@ -31,9 +31,21 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# ── Step 2: Frontend TypeScript Type-check (STRICT — zero tolerance) ──
+# ── Step 2: Lint-staged (auto-fix + block errors) ──
 echo ""
-echo "▶ [2/3] Frontend Type-check (zero tolerance)..."
+echo "▶ [2/4] Lint-staged (ESLint auto-fix on staged files)..."
+npx lint-staged
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ COMMIT BLOCKED: ESLint errors found in staged files."
+  echo "   Run: npm run lint:fix --workspace=wms-frontend"
+  exit 1
+fi
+echo "   ✅ Lint-staged — PASS"
+
+# ── Step 3: Frontend TypeScript Type-check (STRICT — zero tolerance) ──
+echo ""
+echo "▶ [3/4] Frontend Type-check (zero tolerance)..."
 npm run type-check --workspace=wms-frontend
 if [ $? -ne 0 ]; then
   echo ""
@@ -43,9 +55,9 @@ if [ $? -ne 0 ]; then
 fi
 echo "   ✅ Frontend type-check — PASS"
 
-# ── Step 3: Backend Build (compile check) ──
+# ── Step 4: Backend Build (compile check) ──
 echo ""
-echo "▶ [3/3] Backend Build (compile check)..."
+echo "▶ [4/4] Backend Build (compile check)..."
 npm run build --workspace=wms-backend 2>&1
 if [ $? -ne 0 ]; then
   echo ""

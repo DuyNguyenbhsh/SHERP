@@ -45,7 +45,10 @@ export function ForgotPasswordForm({ onBack }: ForgotPasswordFormProps): React.J
       })
       .catch((err: unknown) => {
         if (isAxiosError(err)) {
-          setError(err.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại.')
+          const data = err.response?.data as Record<string, unknown> | undefined
+          const serverMsg =
+            typeof data?.message === 'string' ? data.message : 'Có lỗi xảy ra. Vui lòng thử lại.'
+          setError(serverMsg)
         } else {
           setError('Lỗi kết nối. Vui lòng thử lại.')
         }

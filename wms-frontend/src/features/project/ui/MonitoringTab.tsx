@@ -63,7 +63,7 @@ import type { WbsNode } from '@/entities/project'
 // ── Helpers ──
 
 function vnd(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return Number(v).toLocaleString('vi-VN') + ' ₫'
 }
 
@@ -496,7 +496,7 @@ function VOSection({ projectId }: { projectId: string }) {
                 <TableCell
                   className={`text-right font-mono text-sm ${(vo.budget_delta ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}
                 >
-                  {vo.budget_delta != null
+                  {vo.budget_delta !== null && vo.budget_delta !== undefined
                     ? `${vo.budget_delta > 0 ? '+' : ''}${vnd(vo.budget_delta)}`
                     : '—'}
                 </TableCell>

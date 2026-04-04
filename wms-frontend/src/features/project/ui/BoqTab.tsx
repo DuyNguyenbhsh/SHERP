@@ -16,7 +16,7 @@ import { useBoqItems, useDeleteBoqItem, useImportBoq } from '@/entities/project'
 import type { BoqItem } from '@/entities/project'
 
 function vnd(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return Number(v).toLocaleString('vi-VN') + ' ₫'
 }
 

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, Loader2, Pencil, Trash2, Check, X, Lock, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { isAxiosError } from 'axios'
+import { getErrorMessage } from '@/shared/api/axios'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -75,12 +75,12 @@ function getAllowedStatuses(current: ProjectStatus): ProjectStatus[] {
 }
 
 function fmtNum(v: number | null | undefined): string {
-  if (v == null) return '0.00'
+  if (v === null || v === undefined) return '0.00'
   return Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function fmtBudget(v: number | null | undefined): string {
-  if (v == null) return '—'
+  if (v === null || v === undefined) return '—'
   return (
     Number(v).toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' ₫'
   )
@@ -106,7 +106,7 @@ function projectToEditRow(p: Project): EditRow {
     stage: p.stage,
     status: p.status,
     location: p.location ?? '',
-    gfa_m2: p.gfa_m2 != null ? String(Number(p.gfa_m2)) : '',
+    gfa_m2: p.gfa_m2 !== null && p.gfa_m2 !== undefined ? String(Number(p.gfa_m2)) : '',
   }
 }
 
@@ -416,7 +416,7 @@ export function ProjectsPage(): React.JSX.Element {
         stage: editRow.stage,
         status: editRow.status,
         location: editRow.location || undefined,
-        gfa_m2: gfa != null && !isNaN(gfa) ? gfa : undefined,
+        gfa_m2: gfa !== null && gfa !== undefined && !isNaN(gfa) ? gfa : undefined,
       },
       {
         onSuccess: () => {
@@ -424,11 +424,7 @@ export function ProjectsPage(): React.JSX.Element {
           cancelEdit()
         },
         onError: (err: unknown) => {
-          toast.error(
-            isAxiosError(err) && err.response?.data?.message
-              ? err.response.data.message
-              : 'Cập nhật thất bại',
-          )
+          toast.error(getErrorMessage(err, 'Cập nhật thất bại'))
         },
         onSettled: () => setSaving(false),
       },
@@ -444,11 +440,7 @@ export function ProjectsPage(): React.JSX.Element {
         setDeleteTarget(null)
       },
       onError: (err: unknown) => {
-        toast.error(
-          isAxiosError(err) && err.response?.data?.message
-            ? err.response.data.message
-            : 'Lưu trữ thất bại',
-        )
+        toast.error(getErrorMessage(err, 'Lưu trữ thất bại'))
       },
       onSettled: () => setDeleting(false),
     })

@@ -100,10 +100,10 @@ api.interceptors.response.use(
  * Nếu là Network Error → trả message cụ thể thay vì fallback chung.
  */
 export function getErrorMessage(err: unknown, fallback = 'Đã xảy ra lỗi'): string {
-  if (axios.isAxiosError(err)) {
+  if (axios.isAxiosError<{ message?: string }>(err)) {
     // Server trả về response → lấy message từ data
     if (err.response?.data?.message) {
-      return err.response.data.message as string
+      return err.response.data.message
     }
     // Network error / timeout → message cụ thể
     if (err.code === 'ECONNABORTED') {
