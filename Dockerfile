@@ -79,4 +79,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:3000/api || exit 1
 
 # Run migrations (compiled JS — no ts-node needed) then start app
-CMD ["sh", "-c", "cd wms-backend && node ../node_modules/typeorm/cli.js migration:run -d dist/typeorm-data-source.prod.js && node dist/main.js"]
+CMD ["sh", "-c", "cd wms-backend && node node_modules/typeorm/cli.js migration:run -d dist/typeorm-data-source.prod.js && node dist/main.js"]
