@@ -68,6 +68,9 @@ COPY --from=build-backend /app/wms-backend/package.json ./wms-backend/package.js
 # Frontend build (NestJS ServeStaticModule serves from ../wms-frontend/dist)
 COPY --from=build-frontend /app/wms-frontend/dist ./wms-frontend/dist
 
+# Create logs directory writable by non-root user
+RUN mkdir -p /app/wms-backend/logs && chown erp:erp /app/wms-backend/logs
+
 ENV NODE_ENV=production
 ENV PORT=3000
 
