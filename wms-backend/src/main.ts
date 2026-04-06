@@ -35,11 +35,13 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (err: Error | null, allow?: boolean) => void,
     ) => {
-      // Cho phép: Postman (không có origin), Swagger UI (same-origin), và whitelist
+      // Cho phép: Postman (không có origin), Swagger UI (same-origin),
+      // Vercel preview URLs (*.vercel.app), và whitelist
       if (
         !origin ||
         origin === `http://localhost:${port}` ||
-        allowedOrigins.includes(origin)
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(origin)
       ) {
         callback(null, true);
       } else {
