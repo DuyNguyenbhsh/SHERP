@@ -7,8 +7,21 @@ export enum ProjectStage {
 
 export enum ProjectStatus {
   DRAFT = 'DRAFT',
+  BIDDING = 'BIDDING',
+  WON_BID = 'WON_BID',
+  LOST_BID = 'LOST_BID',
   ACTIVE = 'ACTIVE',
   ON_HOLD = 'ON_HOLD',
-  COMPLETED = 'COMPLETED',
+  SETTLING = 'SETTLING',
+  SETTLED = 'SETTLED',
+  WARRANTY = 'WARRANTY',
+  RETENTION_RELEASED = 'RETENTION_RELEASED',
   CANCELED = 'CANCELED',
+}
+
+export enum ProjectType {
+  CONSTRUCTION = 'CONSTRUCTION',
+  DESIGN_BUILD = 'DESIGN_BUILD',
+  MEP = 'MEP',
+  EPC = 'EPC',
 }

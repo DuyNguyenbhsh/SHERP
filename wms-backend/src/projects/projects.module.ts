@@ -17,6 +17,10 @@ import {
 import { Employee } from '../users/entities/employee.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
+import { NonConformanceReport } from './entities/non-conformance-report.entity';
+import { NcrAttachment } from './entities/ncr-attachment.entity';
+import { WorkItemMaster } from './entities/work-item-master.entity';
+import { SubcontractorKpi } from './entities/subcontractor-kpi.entity';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 import { ProjectHistoryService } from './project-history.service';
@@ -25,6 +29,9 @@ import { ProjectWbsService } from './project-wbs.service';
 import { ProjectBoqService } from './project-boq.service';
 import { ProjectEvmService } from './project-evm.service';
 import { ProjectSettlementService } from './project-settlement.service';
+import { ProjectNcrService } from './project-ncr.service';
+import { WorkItemService } from './work-item.service';
+import { SubcontractorKpiService } from './subcontractor-kpi.service';
 import { DocumentsModule } from '../documents/documents.module';
 import { ProjectRepository } from './infrastructure/repositories';
 import { PROJECT_REPO } from './domain/ports';
@@ -47,6 +54,10 @@ import { PROJECT_REPO } from './domain/ports';
       Employee,
       Organization,
       Supplier,
+      NonConformanceReport,
+      NcrAttachment,
+      WorkItemMaster,
+      SubcontractorKpi,
     ]),
     forwardRef(() => DocumentsModule),
   ],
@@ -59,10 +70,20 @@ import { PROJECT_REPO } from './domain/ports';
     ProjectBoqService,
     ProjectEvmService,
     ProjectSettlementService,
+    ProjectNcrService,
+    WorkItemService,
+    SubcontractorKpiService,
     // Repository Pattern: Infrastructure → Domain Port
     { provide: PROJECT_REPO, useClass: ProjectRepository },
     ProjectRepository,
   ],
-  exports: [ProjectsService, ProjectHistoryService, ProjectBoqService],
+  exports: [
+    ProjectsService,
+    ProjectHistoryService,
+    ProjectBoqService,
+    ProjectNcrService,
+    WorkItemService,
+    SubcontractorKpiService,
+  ],
 })
 export class ProjectsModule {}

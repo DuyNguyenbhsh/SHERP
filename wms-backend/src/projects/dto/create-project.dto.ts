@@ -9,7 +9,11 @@ import {
   Min,
   MaxLength,
 } from 'class-validator';
-import { ProjectStage, ProjectStatus } from '../enums/project.enum';
+import {
+  ProjectStage,
+  ProjectStatus,
+  ProjectType,
+} from '../enums/project.enum';
 
 export class CreateProjectDto {
   @ApiProperty({ description: 'Mã dự án', example: 'PRJ-001' })
@@ -33,6 +37,15 @@ export class CreateProjectDto {
   @IsUUID('4', { message: 'organization_id phải là UUID hợp lệ' })
   @IsOptional()
   organization_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Loại dự án',
+    enum: ProjectType,
+    example: ProjectType.CONSTRUCTION,
+  })
+  @IsEnum(ProjectType, { message: 'Loại dự án không hợp lệ' })
+  @IsOptional()
+  project_type?: ProjectType;
 
   @ApiPropertyOptional({ description: 'Giai đoạn IMPC', enum: ProjectStage })
   @IsEnum(ProjectStage, { message: 'Giai đoạn không hợp lệ' })
@@ -79,4 +92,57 @@ export class CreateProjectDto {
   @Min(0, { message: 'Ngân sách không được âm' })
   @IsOptional()
   budget?: number;
+
+  @ApiPropertyOptional({ description: 'Ngày nộp thầu', example: '2026-04-01' })
+  @IsOptional()
+  @IsString()
+  bid_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Ngày có kết quả thầu',
+    example: '2026-04-15',
+  })
+  @IsOptional()
+  @IsString()
+  bid_result_date?: string;
+
+  @ApiPropertyOptional({ description: 'Lý do trượt thầu' })
+  @IsOptional()
+  @IsString()
+  lost_bid_reason?: string;
+
+  @ApiPropertyOptional({
+    description: 'Số hợp đồng CĐT',
+    example: 'HD-2026-001',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  contract_number?: string;
+
+  @ApiPropertyOptional({
+    description: 'Giá trị hợp đồng CĐT (VNĐ)',
+    example: 45000000000,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  contract_value?: number;
+
+  @ApiPropertyOptional({
+    description: 'Ngày ký hợp đồng',
+    example: '2026-05-01',
+  })
+  @IsOptional()
+  @IsString()
+  contract_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tỷ lệ bảo lưu (%)',
+    example: 5.0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  retention_rate?: number;
 }

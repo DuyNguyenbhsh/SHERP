@@ -9,7 +9,9 @@ import { DataSource } from 'typeorm';
 const dataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
-  ssl: true,
+  ssl: process.env.DATABASE_URL?.includes('neon.tech')
+    ? { rejectUnauthorized: true }
+    : process.env.DB_SSL === 'true',
 
   // In production: use compiled JS entities and migrations
   entities: ['dist/**/*.entity.js'],

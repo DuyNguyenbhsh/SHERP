@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+
 import {
   Controller,
   Get,
@@ -7,6 +11,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   Res,
   UseGuards,
   UseInterceptors,
@@ -27,6 +32,9 @@ import { ProjectWbsService } from './project-wbs.service';
 import { ProjectBoqService } from './project-boq.service';
 import { ProjectEvmService } from './project-evm.service';
 import { ProjectSettlementService } from './project-settlement.service';
+import { ProjectNcrService } from './project-ncr.service';
+import { WorkItemService } from './work-item.service';
+import { SubcontractorKpiService } from './subcontractor-kpi.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
@@ -39,6 +47,20 @@ import { UpsertCbsDto } from './dto/upsert-cbs.dto';
 import { CreateBoqItemDto } from './dto/create-boq-item.dto';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { CreateSettlementDto } from './dto/create-settlement.dto';
+import {
+  CreateNcrDto,
+  AssignNcrDto,
+  ResolveNcrDto,
+  VerifyNcrDto,
+  UpdateNcrDto,
+} from './dto/create-ncr.dto';
+import { UpdateBidResultDto } from './dto/update-bid-result.dto';
+import { UpdateContractDto } from './dto/update-contract.dto';
+import {
+  CreateWorkItemDto,
+  UpdateWorkItemDto,
+} from './dto/create-work-item.dto';
+import { CreateSubcontractorKpiDto } from './dto/create-subcontractor-kpi.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
 import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
@@ -57,6 +79,9 @@ export class ProjectsController {
     private readonly boqService: ProjectBoqService,
     private readonly evmService: ProjectEvmService,
     private readonly settlementService: ProjectSettlementService,
+    private readonly ncrService: ProjectNcrService,
+    private readonly workItemService: WorkItemService,
+    private readonly kpiService: SubcontractorKpiService,
   ) {}
 
   // ══════════════════════════════════════════
@@ -436,5 +461,182 @@ export class ProjectsController {
   @Patch('settlements/:settlementId/finalize')
   finalizeSettlement(@Param('settlementId') id: string) {
     return this.settlementService.finalize(id);
+  }
+
+  // ══════════════════════════════════════════
+  // BID RESULT & CONTRACT
+  // ══════════════════════════════════════════
+
+  @ApiOperation({ summary: 'Ghi nhận kết quả đấu thầu (WON_BID / LOST_BID)' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/bid-result')
+  updateBidResult(@Param('id') id: string, @Body() dto: UpdateBidResultDto) {
+    return this.projectsService.update(id, {
+      status: dto.result as unknown as ProjectStatus,
+      bid_result_date: dto.bid_result_date,
+      lost_bid_reason: dto.lost_bid_reason,
+    });
+  }
+
+  @ApiOperation({ summary: 'Cập nhật thông tin hợp đồng CĐT' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/contract')
+  updateContract(@Param('id') id: string, @Body() dto: UpdateContractDto) {
+    return this.projectsService.update(id, dto);
+  }
+
+  // ══════════════════════════════════════════
+  // NCR — Non-Conformance Reports
+  // ══════════════════════════════════════════
+
+  @ApiOperation({ summary: 'Danh sách NCR theo dự án' })
+  @Get(':id/ncrs')
+  findNcrs(@Param('id') projectId: string) {
+    return this.ncrService.findByProject(projectId);
+  }
+
+  @ApiOperation({ summary: 'Tạo NCR mới' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Post(':id/ncrs')
+  createNcr(
+    @Param('id') projectId: string,
+    @Body() dto: CreateNcrDto,
+    @Req() req: any,
+  ) {
+    return this.ncrService.create(projectId, dto, req.user.sub);
+  }
+
+  @ApiOperation({ summary: 'Chi tiết NCR' })
+  @Get(':id/ncrs/:ncrId')
+  findNcr(@Param('ncrId') ncrId: string) {
+    return this.ncrService.findOne(ncrId);
+  }
+
+  @ApiOperation({ summary: 'Cập nhật NCR' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/ncrs/:ncrId')
+  updateNcr(@Param('ncrId') ncrId: string, @Body() dto: UpdateNcrDto) {
+    return this.ncrService.update(ncrId, dto);
+  }
+
+  @ApiOperation({ summary: 'Phân công người xử lý NCR' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/ncrs/:ncrId/assign')
+  assignNcr(
+    @Param('ncrId') ncrId: string,
+    @Body() dto: AssignNcrDto,
+    @Req() req: any,
+  ) {
+    return this.ncrService.assign(ncrId, dto, req.user.sub);
+  }
+
+  @ApiOperation({ summary: 'Ghi nhận đã xử lý NCR' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/ncrs/:ncrId/resolve')
+  resolveNcr(@Param('ncrId') ncrId: string, @Body() dto: ResolveNcrDto) {
+    return this.ncrService.resolve(ncrId, dto);
+  }
+
+  @ApiOperation({ summary: 'Kiểm tra chấp nhận NCR' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/ncrs/:ncrId/verify')
+  verifyNcr(
+    @Param('ncrId') ncrId: string,
+    @Body() dto: VerifyNcrDto,
+    @Req() req: any,
+  ) {
+    return this.ncrService.verify(ncrId, dto, req.user.sub);
+  }
+
+  @ApiOperation({ summary: 'Mở lại NCR đã đóng' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/ncrs/:ncrId/reopen')
+  reopenNcr(@Param('ncrId') ncrId: string) {
+    return this.ncrService.reopen(ncrId);
+  }
+
+  @ApiOperation({ summary: 'Thống kê NCR theo dự án' })
+  @Get(':id/ncrs/summary')
+  getNcrSummary(@Param('id') projectId: string) {
+    return this.ncrService.getSummary(projectId);
+  }
+
+  // ══════════════════════════════════════════
+  // WORK ITEM MASTER — Công tác
+  // ══════════════════════════════════════════
+
+  @ApiOperation({ summary: 'Danh sách công tác' })
+  @Get('work-items/list')
+  findWorkItems(
+    @Query('search') search?: string,
+    @Query('group') group?: string,
+  ) {
+    return this.workItemService.findAll(search, group);
+  }
+
+  @ApiOperation({ summary: 'Tạo công tác mới' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Post('work-items')
+  createWorkItem(@Body() dto: CreateWorkItemDto) {
+    return this.workItemService.create(dto);
+  }
+
+  @ApiOperation({ summary: 'Chi tiết công tác' })
+  @Get('work-items/:itemId')
+  findWorkItem(@Param('itemId') id: string) {
+    return this.workItemService.findOne(id);
+  }
+
+  @ApiOperation({ summary: 'Cập nhật công tác' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch('work-items/:itemId')
+  updateWorkItem(@Param('itemId') id: string, @Body() dto: UpdateWorkItemDto) {
+    return this.workItemService.update(id, dto);
+  }
+
+  @ApiOperation({ summary: 'Vô hiệu hóa công tác' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Delete('work-items/:itemId')
+  removeWorkItem(@Param('itemId') id: string) {
+    return this.workItemService.remove(id);
+  }
+
+  // ══════════════════════════════════════════
+  // SUBCONTRACTOR KPI — Đánh giá NCC/NTP
+  // ══════════════════════════════════════════
+
+  @ApiOperation({ summary: 'Tạo đánh giá KPI cho NCC/NTP' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Post('suppliers/:supplierId/kpis')
+  createKpi(
+    @Param('supplierId') supplierId: string,
+    @Body() dto: CreateSubcontractorKpiDto,
+  ) {
+    return this.kpiService.create(supplierId, dto);
+  }
+
+  @ApiOperation({ summary: 'Lịch sử đánh giá KPI của NCC/NTP' })
+  @Get('suppliers/:supplierId/kpis')
+  findKpis(@Param('supplierId') supplierId: string) {
+    return this.kpiService.findBySupplierId(supplierId);
+  }
+
+  @ApiOperation({ summary: 'Đánh giá KPI gần nhất' })
+  @Get('suppliers/:supplierId/kpis/latest')
+  findLatestKpi(@Param('supplierId') supplierId: string) {
+    return this.kpiService.findLatest(supplierId);
+  }
+
+  @ApiOperation({ summary: 'Duyệt đánh giá KPI' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch('kpis/:kpiId/approve')
+  approveKpi(@Param('kpiId') kpiId: string, @Req() req: any) {
+    return this.kpiService.approve(kpiId, req.user.sub);
+  }
+
+  @ApiOperation({ summary: 'DS NCC/NTP không đạt KPI' })
+  @Get('kpis/failed')
+  findFailedKpis() {
+    return this.kpiService.findFailed();
   }
 }

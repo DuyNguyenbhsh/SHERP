@@ -11,7 +11,11 @@ import {
 import { Organization } from '../../organizations/entities/organization.entity';
 import { Employee } from '../../users/entities/employee.entity';
 import { Supplier } from '../../suppliers/entities/supplier.entity';
-import { ProjectStage, ProjectStatus } from '../enums/project.enum';
+import {
+  ProjectStage,
+  ProjectStatus,
+  ProjectType,
+} from '../enums/project.enum';
 
 @Entity('projects')
 export class Project {
@@ -34,6 +38,10 @@ export class Project {
 
   @Column({ nullable: true })
   organization_id: string;
+
+  // ── Loai du an ──
+  @Column({ type: 'varchar', length: 30, default: ProjectType.CONSTRUCTION })
+  project_type: ProjectType;
 
   // ── IMPC Portfolio Stage ──
   @Column({ type: 'varchar', length: 30, default: ProjectStage.PLANNING })
@@ -77,6 +85,45 @@ export class Project {
 
   @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
   budget: number;
+
+  // ── Dau thau ──
+  @Column({ type: 'date', nullable: true })
+  bid_date: Date;
+
+  @Column({ type: 'date', nullable: true })
+  bid_result_date: Date;
+
+  @Column({ type: 'text', nullable: true })
+  lost_bid_reason: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  risk_assessment: Record<string, unknown>;
+
+  // ── Hop dong CĐT ──
+  @Column({ length: 100, nullable: true })
+  contract_number: string;
+
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true })
+  contract_value: number;
+
+  @Column({ type: 'date', nullable: true })
+  contract_date: Date;
+
+  // ── Bao hanh ──
+  @Column({ type: 'date', nullable: true })
+  warranty_start: Date;
+
+  @Column({ type: 'date', nullable: true })
+  warranty_end: Date;
+
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    default: 5.0,
+  })
+  retention_rate: number;
 
   @CreateDateColumn()
   created_at: Date;

@@ -46,7 +46,42 @@
       "Bash(node -e \"const { Client } = require\\(''pg''\\); const c = new Client\\(process.env.DATABASE_URL || ''postgresql://neondb_owner:npg_Yv4Jr0GgfjnL@ep-shiny-credit-aie1gxhv-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require''\\); c.connect\\(\\).then\\(\\(\\) => c.query\\(''SELECT NOW\\(\\)''\\)\\).then\\(r => { console.log\\(''DB OK:'', r.rows[0].now\\); c.end\\(\\); }\\).catch\\(e => { console.error\\(''DB FAIL:'', e.message\\); process.exit\\(1\\); }\\)\")",
       "Bash(node scripts/fix-unicode.mjs)",
       "Bash(echo \"const x = ''''Duy\\\\u1EC7t'''';\")",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git:*)",
+      "Bash(grep -n \"\\\\\\\\\\\\\\\\u\" \"C:\\\\Users\\\\Admin\\\\SH ERP\\\\wms-frontend\\\\src\\\\pages\\\\project-requests\\\\ProjectRequestsPage.tsx\")",
+      "Bash(grep -n \"\\\\\\\\\\\\\\\\u\" \"C:\\\\Users\\\\Admin\\\\SH ERP\\\\wms-frontend\\\\src\\\\pages\\\\projects\\\\ProjectsPage.tsx\")",
+      "Bash(node:*)",
+      "Bash(npm list:*)",
+      "Bash(xargs cat:*)",
+      "Bash(grep:*)",
+      "Bash(npm search:*)",
+      "Bash(npm view:*)",
+      "Bash(gh auth:*)",
+      "Bash(npx -y @modelcontextprotocol/server-github --help)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(claude:*)",
+      "Bash(ls \"/c/Users/Admin/SH ERP/\"*.jpg \"/c/Users/Admin/SH ERP/\"*.png)",
+      "Read(//c/Users/Admin/**)",
+      "Bash(npx vite:*)",
+      "mcp__github__list_commits",
+      "Bash(npm ls:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"[RENDER DEPLOY CHECK] Code was just pushed to remote. You MUST now check the Render build status: 1) Use the Render MCP tools to list services and get the latest deploy status/logs. 2) If no MCP is available, remind Duy to check Render dashboard. 3) If the build fails, analyze the log and propose a fix immediately.\"}}'",
+            "if": "Bash(git push:*)",
+            "timeout": 5,
+            "statusMessage": "Checking Render deploy..."
+          }
+        ]
+      }
     ]
   }
 }

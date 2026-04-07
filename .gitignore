@@ -5,3 +5,4 @@ node_modules
 # Workspace nested lock files (root lock file manages all)
 wms-backend/package-lock.json
 wms-frontend/package-lock.json
+.mcp.json
