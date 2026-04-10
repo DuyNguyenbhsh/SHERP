@@ -68,6 +68,10 @@ import type {
   RequestAttachment,
 } from '@/entities/project-request'
 import { useAuthStore } from '@/features/auth'
+import { DocumentList } from '@/shared/ui/DocumentList'
+import type { DocumentItem } from '@/shared/ui/DocumentList'
+import { validateFiles } from '@/shared/lib/file-utils'
+import { useActivityLog } from '@/entities/project-request'
 
 // ── Helpers ──
 
@@ -512,7 +516,15 @@ function RequestDetailDialog({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    if (e.target.files) setUploadFiles((prev) => [...prev, ...Array.from(e.target.files!)])
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files)
+      const result = validateFiles(newFiles)
+      if (!result.valid) {
+        toast.error(result.error ?? 'File không hợp lệ')
+        return
+      }
+      setUploadFiles((prev) => [...prev, ...newFiles])
+    }
   }
   const removeFile = (idx: number): void =>
     setUploadFiles((prev) => prev.filter((_, i) => i !== idx))
@@ -663,26 +675,19 @@ function RequestDetailDialog({
           )}
           {r.attachments && r.attachments.length > 0 && (
             <div className="col-span-2 space-y-1">
-              <span className="text-muted-foreground font-semibold text-xs">Đính kèm:</span>
-              <div className="flex flex-wrap gap-2">
-                {r.attachments.map((att: RequestAttachment) => (
-                  <div
-                    key={att.id}
-                    className="flex items-center gap-1 text-xs border rounded px-2 py-1"
-                  >
-                    <FileDown className="h-3 w-3" />
-                    <span>{att.file_name}</span>
-                    {att.uploaded_by_role === 'APPROVER' && (
-                      <Badge
-                        variant="secondary"
-                        className="text-[9px] ml-1 bg-blue-100 text-blue-700"
-                      >
-                        BP Duyệt bổ sung
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <span className="text-muted-foreground font-semibold text-xs">
+                Chứng từ đính kèm ({r.attachments.length})
+              </span>
+              <DocumentList
+                documents={r.attachments as DocumentItem[]}
+                canDelete={r.status === 'DRAFT' || r.status === 'PENDING_INFO'}
+                onDelete={(attId) => {
+                  void api
+                    .delete(`/project-requests/attachments/${attId}`)
+                    .then(() => toast.success('Đã xóa chứng từ'))
+                    .catch(() => toast.error('Không thể xóa chứng từ'))
+                }}
+              />
             </div>
           )}
           {r.rejection_reason && (
@@ -728,46 +733,11 @@ function RequestDetailDialog({
           )}
         </div>
 
-        {/* Workflow logs */}
-        {r.workflow_logs && r.workflow_logs.length > 0 && (
-          <div className="space-y-2 border-t pt-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase">
-              Lịch sử phê duyệt
-            </p>
-            <div className="space-y-1.5">
-              {r.workflow_logs.map((log) => (
-                <div key={log.id} className="flex items-start gap-2 text-xs">
-                  <div
-                    className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-                      log.action === 'APPROVE' || log.action === 'DEPLOY'
-                        ? 'bg-green-500'
-                        : log.action === 'REJECT'
-                          ? 'bg-red-500'
-                          : log.action === 'REQUEST_INFO'
-                            ? 'bg-amber-500'
-                            : log.action === 'RESUBMIT'
-                              ? 'bg-cyan-500'
-                              : 'bg-blue-500'
-                    }`}
-                  />
-                  <div>
-                    <span className="font-medium">{log.acted_by_name ?? log.acted_by}</span>
-                    {log.actor_role && (
-                      <span className="text-muted-foreground"> ({log.actor_role})</span>
-                    )}
-                    <span className="text-muted-foreground"> — {log.action}</span>
-                    <span className="text-muted-foreground ml-2">
-                      {new Date(log.acted_at).toLocaleString('vi-VN')}
-                    </span>
-                    {log.comment && (
-                      <p className="text-muted-foreground mt-0.5 italic">"{log.comment}"</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Lịch sử hoạt động */}
+        <div className="space-y-2 border-t pt-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase">Lịch sử hoạt động</p>
+          <ActivityLogTimeline requestId={r.id} />
+        </div>
 
         {/* Actions */}
         {(canSubmit ||
@@ -991,6 +961,87 @@ function RequestDetailDialog({
           )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ══════════════════════════════════════════════
+// ACTIVITY LOG TIMELINE
+// ══════════════════════════════════════════════
+
+const ACTION_LABELS: Record<string, string> = {
+  SUBMIT: 'Gửi đề xuất',
+  APPROVE: 'Duyệt',
+  REJECT: 'Từ chối',
+  CANCEL: 'Hủy',
+  DEPLOY: 'Triển khai',
+  REQUEST_INFO: 'Yêu cầu bổ sung',
+  RESUBMIT: 'Gửi lại',
+  UPLOAD_FILE: 'Tải lên chứng từ',
+}
+
+const ACTION_COLORS: Record<string, string> = {
+  SUBMIT: 'bg-blue-500',
+  APPROVE: 'bg-green-500',
+  REJECT: 'bg-red-500',
+  CANCEL: 'bg-gray-500',
+  DEPLOY: 'bg-emerald-600',
+  REQUEST_INFO: 'bg-amber-500',
+  RESUBMIT: 'bg-cyan-500',
+  UPLOAD_FILE: 'bg-purple-500',
+}
+
+function ActivityLogTimeline({ requestId }: { requestId: string }): React.JSX.Element {
+  const { data: activities, isLoading } = useActivityLog(requestId)
+
+  if (isLoading)
+    return (
+      <div className="flex justify-center py-4">
+        <Loader2 className="h-4 w-4 animate-spin" />
+      </div>
+    )
+  if (!activities?.length)
+    return <p className="text-xs text-muted-foreground italic py-2">Chưa có hoạt động nào</p>
+
+  return (
+    <div className="space-y-0">
+      {activities.map((entry, idx) => (
+        <div key={idx} className="flex gap-3 pb-3 relative">
+          {idx < activities.length - 1 && (
+            <div className="absolute left-[7px] top-5 bottom-0 w-0.5 bg-gray-200" />
+          )}
+          <div
+            className={`mt-1 h-3.5 w-3.5 rounded-full shrink-0 ring-2 ring-white ${ACTION_COLORS[entry.action] || 'bg-gray-400'}`}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-semibold">{entry.actor_name || 'Hệ thống'}</span>
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+                {ACTION_LABELS[entry.action] || entry.action}
+              </Badge>
+              <span className="text-muted-foreground ml-auto whitespace-nowrap">
+                {new Date(entry.timestamp).toLocaleString('vi-VN')}
+              </span>
+            </div>
+            {entry.detail && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {entry.type === 'attachment' ? (
+                  <a
+                    href={(entry.metadata?.file_url as string) ?? '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {entry.detail}
+                  </a>
+                ) : (
+                  <span className="italic">{entry.detail}</span>
+                )}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

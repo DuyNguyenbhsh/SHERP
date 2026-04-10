@@ -588,6 +588,12 @@ export class ProjectRequestsService {
     userId: string,
     userName?: string,
   ): Promise<RequestAttachment> {
+    // Chống trùng lặp: cùng request + cùng URL
+    const existing = await this.attachmentRepo.findOne({
+      where: { request_id: requestId, file_url: fileUrl },
+    });
+    if (existing) return existing;
+
     const att = this.attachmentRepo.create({
       request_id: requestId,
       file_url: fileUrl,
@@ -601,10 +607,95 @@ export class ProjectRequestsService {
   }
 
   async removeAttachment(attachmentId: string): Promise<void> {
-    const result = await this.attachmentRepo.delete(attachmentId);
-    if (result.affected === 0) {
-      throw new NotFoundException('Tệp đính kèm không tồn tại');
+    const att = await this.attachmentRepo.findOne({
+      where: { id: attachmentId },
+      relations: ['request'],
+    });
+    if (!att) throw new NotFoundException('Tệp đính kèm không tồn tại');
+
+    // Chặn xóa khi tờ trình đã duyệt/triển khai
+    const lockedStatuses = [
+      ProjectRequestStatus.DEPT_APPROVED,
+      ProjectRequestStatus.EXEC_APPROVED,
+      ProjectRequestStatus.DEPLOYED,
+    ];
+    if (att.request && lockedStatuses.includes(att.request.status)) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Không thể xóa chứng từ khi tờ trình đã được duyệt',
+        data: null,
+      });
     }
+
+    await this.attachmentRepo.delete(attachmentId);
+  }
+
+  // ── ACTIVITY LOG (Lịch sử tờ trình) ──
+
+  async getActivityLog(requestId: string) {
+    const request = await this.requestRepo.findOne({
+      where: { id: requestId },
+      relations: ['workflow_logs', 'attachments'],
+    });
+    if (!request)
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Yêu cầu không tồn tại!',
+        data: null,
+      });
+
+    // Merge workflow logs + attachments into unified timeline
+    const activities: {
+      type: 'workflow' | 'attachment';
+      timestamp: string;
+      actor_name: string | null;
+      actor_role: string | null;
+      action: string;
+      detail: string | null;
+      metadata?: Record<string, unknown>;
+    }[] = [];
+
+    // Workflow events
+    for (const log of request.workflow_logs ?? []) {
+      activities.push({
+        type: 'workflow',
+        timestamp: String(log.acted_at),
+        actor_name: log.acted_by_name,
+        actor_role: log.actor_role,
+        action: log.action,
+        detail: log.comment,
+        metadata: { from_status: log.from_status, to_status: log.to_status },
+      });
+    }
+
+    // File upload events
+    for (const att of request.attachments ?? []) {
+      activities.push({
+        type: 'attachment',
+        timestamp: String(att.uploaded_at),
+        actor_name: att.uploaded_by_name,
+        actor_role: att.uploaded_by_role,
+        action: 'UPLOAD_FILE',
+        detail: att.file_name,
+        metadata: {
+          file_url: att.file_url,
+          file_size: att.file_size,
+          uploaded_by_role: att.uploaded_by_role,
+        },
+      });
+    }
+
+    // Sort by timestamp DESC
+    activities.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+    return {
+      status: 'success',
+      message: `Lịch sử hoạt động: ${activities.length} sự kiện`,
+      data: activities,
+    };
   }
 
   // ── EXPORT EXCEL TỜ TRÌNH ──

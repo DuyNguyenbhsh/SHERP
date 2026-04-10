@@ -108,6 +108,12 @@ export class ProjectRequestsController {
     return this.service.findOne(id);
   }
 
+  @ApiOperation({ summary: 'Lịch sử hoạt động tờ trình (timeline)' })
+  @Get(':id/activity-log')
+  getActivityLog(@Param('id') id: string) {
+    return this.service.getActivityLog(id);
+  }
+
   @ApiOperation({ summary: 'Export tờ trình chi tiết (để in ký đóng dấu)' })
   @Get(':id/excel/export')
   async exportSingle(

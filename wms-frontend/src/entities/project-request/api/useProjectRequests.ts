@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/axios'
-import type { ProjectRequest } from '../types'
+import type { ProjectRequest, ActivityLogEntry } from '../types'
 
 interface ApiResponse<T> {
   status: string
@@ -24,6 +24,19 @@ export function useProjectRequest(id: string | undefined) {
     queryKey: ['project-request', id],
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<ProjectRequest>>(`/project-requests/${id}`)
+      return data.data
+    },
+    enabled: !!id,
+  })
+}
+
+export function useActivityLog(id: string | undefined) {
+  return useQuery({
+    queryKey: ['project-request-activity', id],
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<ActivityLogEntry[]>>(
+        `/project-requests/${id}/activity-log`,
+      )
       return data.data
     },
     enabled: !!id,

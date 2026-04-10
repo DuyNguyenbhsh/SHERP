@@ -59,6 +59,16 @@ export interface ProjectRequest {
   updated_at: string
 }
 
+export interface ActivityLogEntry {
+  type: 'workflow' | 'attachment'
+  timestamp: string
+  actor_name: string | null
+  actor_role: string | null
+  action: string
+  detail: string | null
+  metadata?: Record<string, unknown>
+}
+
 export const STATUS_LABELS: Record<ProjectRequestStatus, string> = {
   DRAFT: 'Bản nháp',
   SUBMITTED: 'Đã đề xuất',
