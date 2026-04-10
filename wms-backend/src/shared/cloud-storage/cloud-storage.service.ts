@@ -70,6 +70,8 @@ export class CloudStorageService {
         {
           folder: `sh-erp/${folder}`,
           resource_type: 'auto',
+          type: 'upload',
+          access_mode: 'public',
           public_id: this.generatePublicId(originalName),
           overwrite: false,
         },
