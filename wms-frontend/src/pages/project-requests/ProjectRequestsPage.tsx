@@ -539,47 +539,35 @@ function RequestDetailDialog({
     }
   }
 
-  const handleApproveWithFiles = async (): Promise<void> => {
+  const doAction = (
+    mut: ReturnType<typeof useSubmitRequest>,
+    successMsg: string,
+    fileRole = 'PROPOSER',
+  ) => {
     setActing(true)
-    try {
+    const run = async (): Promise<void> => {
       if (uploadFiles.length > 0) {
         setUploading(true)
-        await uploadAllFiles('APPROVER')
+        await uploadAllFiles(fileRole)
         setUploading(false)
       }
-      const mut = canApproveDept ? approveDeptMut : approveExecMut
-      const msg = canApproveDept ? 'Trưởng BP đã duyệt' : 'Ban ĐH duyệt'
       mut.mutate(
         { id: requestId, comment: comment || undefined },
         {
           onSuccess: () => {
-            toast.success(msg)
+            toast.success(successMsg)
             setComment('')
             setUploadFiles([])
           },
-          onError: (err: unknown) => toast.error(getErrorMessage(err, 'Duyệt thất bại')),
+          onError: (err: unknown) => toast.error(getErrorMessage(err, 'Thao tác thất bại')),
           onSettled: () => setActing(false),
         },
       )
-    } catch {
+    }
+    void run().catch(() => {
       setActing(false)
       setUploading(false)
-    }
-  }
-
-  const doAction = (mut: ReturnType<typeof useSubmitRequest>, successMsg: string) => {
-    setActing(true)
-    mut.mutate(
-      { id: requestId, comment: comment || undefined },
-      {
-        onSuccess: () => {
-          toast.success(successMsg)
-          setComment('')
-        },
-        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Thao tác thất bại')),
-        onSettled: () => setActing(false),
-      },
-    )
+    })
   }
 
   const handleExportExcel = async () => {
@@ -795,7 +783,7 @@ function RequestDetailDialog({
               onChange={(e) => setComment(e.target.value)}
               className="h-8 text-sm"
             />
-            {(canApproveDept || canApproveExec) && (
+            {(canSubmit || canApproveDept || canApproveExec || canResubmit) && (
               <div className="space-y-2">
                 <div
                   className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
@@ -822,6 +810,7 @@ function RequestDetailDialog({
                   <p className="text-xs text-muted-foreground">
                     Kéo thả hoặc bấm để tải lên chứng từ bổ sung
                   </p>
+                  <p className="text-[10px] text-gray-400 mt-1">Đang dùng Cloudinary để lưu trữ</p>
                 </div>
                 {uploadFiles.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
@@ -854,18 +843,19 @@ function RequestDetailDialog({
                   onClick={() => doAction(submitMut, 'Đã gửi đề xuất')}
                   disabled={acting}
                 >
-                  <Send className="h-3 w-3" /> Gửi đề xuất
+                  {uploading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                  {uploadFiles.length > 0 ? ' Gửi & Đính kèm' : ' Gửi đề xuất'}
                 </Button>
               )}
               {canApproveDept && (
                 <Button
                   size="sm"
                   className="gap-1 bg-green-600 hover:bg-green-700"
-                  onClick={() =>
-                    uploadFiles.length > 0
-                      ? void handleApproveWithFiles()
-                      : doAction(approveDeptMut, 'Trưởng BP đã duyệt')
-                  }
+                  onClick={() => doAction(approveDeptMut, 'Trưởng BP đã duyệt', 'APPROVER')}
                   disabled={acting}
                 >
                   {uploading ? (
@@ -881,9 +871,7 @@ function RequestDetailDialog({
                   size="sm"
                   className="gap-1 bg-green-600 hover:bg-green-700"
                   onClick={() =>
-                    uploadFiles.length > 0
-                      ? void handleApproveWithFiles()
-                      : doAction(approveExecMut, 'Ban ĐH duyệt — Dự án đã tạo')
+                    doAction(approveExecMut, 'Ban ĐH duyệt — Dự án đã tạo', 'APPROVER')
                   }
                   disabled={acting}
                 >
@@ -935,23 +923,40 @@ function RequestDetailDialog({
                   className="gap-1 bg-cyan-600 hover:bg-cyan-700 text-white"
                   onClick={() => {
                     setActing(true)
+                    const run = async (): Promise<void> => {
+                      if (uploadFiles.length > 0) {
+                        setUploading(true)
+                        await uploadAllFiles('PROPOSER')
+                        setUploading(false)
+                      }
 
-                    resubmitMut.mutate(
-                      { id: requestId },
-                      {
-                        onSuccess: () => {
-                          toast.success('Đã cập nhật và gửi lại')
-                          setComment('')
+                      resubmitMut.mutate(
+                        { id: requestId },
+                        {
+                          onSuccess: () => {
+                            toast.success('Đã cập nhật và gửi lại')
+                            setComment('')
+                            setUploadFiles([])
+                          },
+                          onError: (err: unknown) =>
+                            toast.error(getErrorMessage(err, 'Gửi lại thất bại')),
+                          onSettled: () => setActing(false),
                         },
-                        onError: (err: unknown) =>
-                          toast.error(getErrorMessage(err, 'Gửi lại thất bại')),
-                        onSettled: () => setActing(false),
-                      },
-                    )
+                      )
+                    }
+                    void run().catch(() => {
+                      setActing(false)
+                      setUploading(false)
+                    })
                   }}
                   disabled={acting}
                 >
-                  <RotateCcw className="h-3 w-3" /> Cập nhật & Gửi lại
+                  {uploading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3 w-3" />
+                  )}
+                  {uploadFiles.length > 0 ? ' Cập nhật & Bổ sung' : ' Cập nhật & Gửi lại'}
                 </Button>
               )}
               <Button
