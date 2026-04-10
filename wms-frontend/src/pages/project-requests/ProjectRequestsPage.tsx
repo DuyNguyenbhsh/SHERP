@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage, api } from '@/shared/api/axios'
 import {
@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Trash2,
+  Paperclip,
+  Upload,
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -505,6 +507,65 @@ function RequestDetailDialog({
   const resubmitMut = useResubmitRequest()
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [uploadFiles, setUploadFiles] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    if (e.target.files) setUploadFiles((prev) => [...prev, ...Array.from(e.target.files!)])
+  }
+  const removeFile = (idx: number): void =>
+    setUploadFiles((prev) => prev.filter((_, i) => i !== idx))
+
+  const uploadAllFiles = async (role: string): Promise<void> => {
+    for (const file of uploadFiles) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'project-requests')
+      try {
+        const res = await api.post('/upload/cloudinary', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        const fileUrl = (res.data as { data: { secure_url: string } }).data.secure_url
+        await api.post(`/project-requests/${requestId}/attachments`, {
+          file_url: fileUrl,
+          file_name: file.name,
+          file_size: file.size,
+          uploaded_by_role: role,
+        })
+      } catch {
+        toast.error('Tải lên thất bại')
+      }
+    }
+  }
+
+  const handleApproveWithFiles = async (): Promise<void> => {
+    setActing(true)
+    try {
+      if (uploadFiles.length > 0) {
+        setUploading(true)
+        await uploadAllFiles('APPROVER')
+        setUploading(false)
+      }
+      const mut = canApproveDept ? approveDeptMut : approveExecMut
+      const msg = canApproveDept ? 'Trưởng BP đã duyệt' : 'Ban ĐH duyệt'
+      mut.mutate(
+        { id: requestId, comment: comment || undefined },
+        {
+          onSuccess: () => {
+            toast.success(msg)
+            setComment('')
+            setUploadFiles([])
+          },
+          onError: (err: unknown) => toast.error(getErrorMessage(err, 'Duyệt thất bại')),
+          onSettled: () => setActing(false),
+        },
+      )
+    } catch {
+      setActing(false)
+      setUploading(false)
+    }
+  }
 
   const doAction = (mut: ReturnType<typeof useSubmitRequest>, successMsg: string) => {
     setActing(true)
@@ -734,6 +795,57 @@ function RequestDetailDialog({
               onChange={(e) => setComment(e.target.value)}
               className="h-8 text-sm"
             />
+            {(canApproveDept || canApproveExec) && (
+              <div className="space-y-2">
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (e.dataTransfer.files)
+                      setUploadFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)])
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <Paperclip className="h-5 w-5 mx-auto text-gray-400 mb-1" />
+                  <p className="text-xs text-muted-foreground">
+                    Kéo thả hoặc bấm để tải lên chứng từ bổ sung
+                  </p>
+                </div>
+                {uploadFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {uploadFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-1 text-xs border rounded px-2 py-1 bg-blue-50"
+                      >
+                        <Upload className="h-3 w-3 text-blue-600" />
+                        <span className="max-w-[150px] truncate">{file.name}</span>
+                        <button
+                          type="button"
+                          className="text-red-400 hover:text-red-600 ml-1"
+                          onClick={() => removeFile(idx)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2 flex-wrap">
               {canSubmit && (
                 <Button
@@ -749,20 +861,38 @@ function RequestDetailDialog({
                 <Button
                   size="sm"
                   className="gap-1 bg-green-600 hover:bg-green-700"
-                  onClick={() => doAction(approveDeptMut, 'Trưởng BP đã duyệt')}
+                  onClick={() =>
+                    uploadFiles.length > 0
+                      ? void handleApproveWithFiles()
+                      : doAction(approveDeptMut, 'Trưởng BP đã duyệt')
+                  }
                   disabled={acting}
                 >
-                  <Check className="h-3 w-3" /> Trưởng BP Duyệt
+                  {uploading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Check className="h-3 w-3" />
+                  )}
+                  {uploadFiles.length > 0 ? ' Duyệt & Đính kèm' : ' Trưởng BP Duyệt'}
                 </Button>
               )}
               {canApproveExec && (
                 <Button
                   size="sm"
                   className="gap-1 bg-green-600 hover:bg-green-700"
-                  onClick={() => doAction(approveExecMut, 'Ban ĐH duyệt — Dự án đã tạo')}
+                  onClick={() =>
+                    uploadFiles.length > 0
+                      ? void handleApproveWithFiles()
+                      : doAction(approveExecMut, 'Ban ĐH duyệt — Dự án đã tạo')
+                  }
                   disabled={acting}
                 >
-                  <Check className="h-3 w-3" /> Ban ĐH Duyệt
+                  {uploading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Check className="h-3 w-3" />
+                  )}
+                  {uploadFiles.length > 0 ? ' Duyệt & Đính kèm' : ' Ban ĐH Duyệt'}
                 </Button>
               )}
               {canReject && (

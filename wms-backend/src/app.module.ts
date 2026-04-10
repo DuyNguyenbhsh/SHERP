@@ -34,6 +34,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { SharedModule } from './shared/shared.module';
 import { AuditModule } from './common/audit/audit.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
     SharedModule,
     AuditModule,
     SystemSettingsModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [
