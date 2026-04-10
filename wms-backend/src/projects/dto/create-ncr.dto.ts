@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -77,6 +78,7 @@ export class ResolveNcrDto {
 
 export class VerifyNcrDto {
   @ApiProperty({ description: 'Chap nhan hay tu choi' })
+  @IsBoolean({ message: 'accepted phai la boolean' })
   accepted: boolean;
 
   @ApiPropertyOptional({ description: 'Ghi chu' })

@@ -1,10 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
-/* eslint-disable @typescript-eslint/no-base-to-string */
 import {
   Injectable,
   NotFoundException,
@@ -28,6 +21,7 @@ import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { CreateCostCategoryDto } from './dto/create-cost-category.dto';
 import { UpsertBudgetDto } from './dto/upsert-budget.dto';
+import { UpdateBidResultDto } from './dto/update-bid-result.dto';
 import { DocumentsService } from '../documents/documents.service';
 import { ProjectHistoryService } from './project-history.service';
 import { isValidTransition, STATUS_TRANSITIONS } from './enums/status-flow';
@@ -68,7 +62,7 @@ export class ProjectsService {
   ) {}
 
   async findAll(status?: string, stage?: string) {
-    const where: any = {};
+    const where: Record<string, string> = {};
     if (status) where.status = status;
     if (stage) where.stage = stage;
 
@@ -135,7 +129,7 @@ export class ProjectsService {
         message: `Tạo dự án ${saved.project_code} thành công`,
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'tạo dự án');
     }
   }
@@ -193,9 +187,48 @@ export class ProjectsService {
         message: `Cập nhật dự án ${saved.project_code} thành công`,
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'cập nhật dự án');
     }
+  }
+
+  async updateBidResult(id: string, dto: UpdateBidResultDto) {
+    const project = await this.projectRepo.findOne({ where: { id } });
+    if (!project) {
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Dự án không tồn tại!',
+        data: null,
+      });
+    }
+
+    if (project.status !== ProjectStatus.BIDDING) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Chỉ dự án đang ở trạng thái BIDDING mới có thể ghi nhận kết quả thầu. Trạng thái hiện tại: "${project.status}"`,
+        data: null,
+      });
+    }
+
+    if (dto.result === 'LOST_BID' && !dto.lost_bid_reason) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Phải ghi rõ lý do trượt thầu khi kết quả là LOST_BID',
+        data: null,
+      });
+    }
+
+    project.status = dto.result as ProjectStatus;
+    if (dto.bid_result_date)
+      project.bid_result_date = new Date(dto.bid_result_date);
+    if (dto.lost_bid_reason) project.lost_bid_reason = dto.lost_bid_reason;
+
+    const saved = await this.projectRepo.save(project);
+    return {
+      status: 'success',
+      message: `Ghi nhận kết quả thầu: ${dto.result} cho dự án ${saved.project_code}`,
+      data: saved,
+    };
   }
 
   async remove(id: string) {
@@ -284,7 +317,7 @@ export class ProjectsService {
         message: 'Phân công nhân viên thành công',
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'phân công nhân viên');
     }
   }
@@ -339,7 +372,7 @@ export class ProjectsService {
         message: `Tạo loại chi phí ${saved.code} thành công`,
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'tạo loại chi phí');
     }
   }
@@ -409,7 +442,7 @@ export class ProjectsService {
         message: 'Cập nhật ngân sách thành công',
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'cập nhật ngân sách');
     }
   }
@@ -456,6 +489,9 @@ export class ProjectsService {
         data: null,
       });
 
+    // ── Budgetary Control: Hard Limit Check ──
+    await this.checkBudgetLimit(projectId, dto.category_id, dto.amount);
+
     const transaction = this.transactionRepo.create({
       project_id: projectId,
       category_id: dto.category_id,
@@ -473,7 +509,7 @@ export class ProjectsService {
         message: 'Tạo giao dịch thành công',
         data: saved,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.handleDbError(error, 'tạo giao dịch');
     }
   }
@@ -664,6 +700,7 @@ export class ProjectsService {
     const validStages = Object.values(ProjectStage);
     const validStatuses = Object.values(ProjectStatus);
 
+    /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-member-access */
     const result = await this.excelService.parseExcel(fileBuffer, {
       columns: this.PROJECT_COLUMNS,
       requiredKeys: ['project_code', 'project_name'],
@@ -828,25 +865,26 @@ export class ProjectsService {
     }
 
     // Tổng hợp chi phí
-    const budgetSum = await this.budgetRepo
+    const budgetSum: Record<string, string> | undefined = await this.budgetRepo
       .createQueryBuilder('b')
       .select('COALESCE(SUM(b.planned_amount), 0)', 'total')
       .where('b.project_id = :projectId', { projectId })
       .getRawOne();
 
-    const actualSum = await this.transactionRepo
-      .createQueryBuilder('t')
-      .select('COALESCE(SUM(t.amount), 0)', 'total')
-      .addSelect('COUNT(t.id)', 'count')
-      .where('t.project_id = :projectId', { projectId })
-      .getRawOne();
+    const actualSum: Record<string, string> | undefined =
+      await this.transactionRepo
+        .createQueryBuilder('t')
+        .select('COALESCE(SUM(t.amount), 0)', 'total')
+        .addSelect('COUNT(t.id)', 'count')
+        .where('t.project_id = :projectId', { projectId })
+        .getRawOne();
 
     const totalBudget = parseFloat(budgetSum?.total || '0');
     const totalActual = parseFloat(actualSum?.total || '0');
     const variance = totalBudget - totalActual;
 
     // Tổng hợp WBS
-    const wbsStats = await this.wbsRepo
+    const wbsStats: Record<string, string> | undefined = await this.wbsRepo
       .createQueryBuilder('w')
       .select('COUNT(w.id)', 'total_nodes')
       .addSelect(
@@ -862,7 +900,7 @@ export class ProjectsService {
       .getRawOne();
 
     // Tổng hợp BOQ
-    const boqStats = await this.boqRepo
+    const boqStats: Record<string, string> | undefined = await this.boqRepo
       .createQueryBuilder('b')
       .select('COUNT(b.id)', 'total_items')
       .addSelect('COALESCE(SUM(b.total_price), 0)', 'total_value')
@@ -943,9 +981,46 @@ export class ProjectsService {
     };
   }
 
+  // ── Budgetary Control: Hard Limit ──
+
+  async checkBudgetLimit(
+    projectId: string,
+    categoryId: string,
+    amount: number,
+  ): Promise<void> {
+    const budget = await this.budgetRepo.findOne({
+      where: { project_id: projectId, category_id: categoryId },
+    });
+
+    if (!budget) return; // Khong co budget line → khong co hard limit
+
+    const rawSum: { sum: string } | undefined = await this.transactionRepo
+      .createQueryBuilder('tx')
+      .select('COALESCE(SUM(tx.amount), 0)', 'sum')
+      .where('tx.project_id = :projectId', { projectId })
+      .andWhere('tx.category_id = :categoryId', { categoryId })
+      .getRawOne();
+
+    const currentSpent = parseFloat(rawSum?.sum ?? '0');
+    const planned = Number(budget.planned_amount);
+
+    if (currentSpent + amount > planned) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Vượt ngân sách! Hạng mục này đã chi ${currentSpent.toLocaleString('vi-VN')} / ${planned.toLocaleString('vi-VN')} VNĐ. Giao dịch ${amount.toLocaleString('vi-VN')} VNĐ sẽ vượt ${(currentSpent + amount - planned).toLocaleString('vi-VN')} VNĐ.`,
+        data: {
+          planned,
+          spent: currentSpent,
+          requested: amount,
+          over: currentSpent + amount - planned,
+        },
+      });
+    }
+  }
+
   // ── Shared DB error handler ──
 
-  private handleDbError(error: any, context: string): never {
+  private handleDbError(error: unknown, context: string): never {
     // HttpException đã được throw từ business logic → re-throw nguyên bản
     if (
       error instanceof BadRequestException ||
@@ -955,10 +1030,12 @@ export class ProjectsService {
       throw error;
     }
 
+    const dbErr = error as Record<string, string | undefined>;
+
     // PostgreSQL Unique Violation → 409 Conflict
-    if (error.code === '23505') {
-      const field = this.extractFieldFromPgDetail(error.detail);
-      const value = this.extractValueFromPgDetail(error.detail);
+    if (dbErr.code === '23505') {
+      const field = this.extractFieldFromPgDetail(dbErr.detail);
+      const value = this.extractValueFromPgDetail(dbErr.detail);
       const label = field || 'dữ liệu';
       throw new ConflictException({
         status: 'error',
@@ -970,7 +1047,7 @@ export class ProjectsService {
     }
 
     // PostgreSQL Foreign Key Violation → 409 Conflict
-    if (error.code === '23503') {
+    if (dbErr.code === '23503') {
       throw new ConflictException({
         status: 'error',
         message: `Không thể ${context}: Dữ liệu liên quan không tồn tại hoặc đang được sử dụng.`,
@@ -979,7 +1056,7 @@ export class ProjectsService {
     }
 
     // PostgreSQL Not Null Violation → 400 Bad Request
-    if (error.code === '23502') {
+    if (dbErr.code === '23502') {
       throw new BadRequestException({
         status: 'error',
         message: `Không thể ${context}: Thiếu dữ liệu bắt buộc.`,

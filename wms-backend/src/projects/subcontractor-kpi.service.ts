@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubcontractorKpi } from './entities/subcontractor-kpi.entity';
+import { Supplier } from '../suppliers/entities/supplier.entity';
 import { CreateSubcontractorKpiDto } from './dto/create-subcontractor-kpi.dto';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class SubcontractorKpiService {
   constructor(
     @InjectRepository(SubcontractorKpi)
     private readonly repo: Repository<SubcontractorKpi>,
+    @InjectRepository(Supplier)
+    private readonly supplierRepo: Repository<Supplier>,
   ) {}
 
   async create(
@@ -44,11 +47,23 @@ export class SubcontractorKpiService {
   }
 
   async approve(kpiId: string, userId: string): Promise<SubcontractorKpi> {
-    const kpi = await this.repo.findOne({ where: { id: kpiId } });
+    const kpi = await this.repo.findOne({
+      where: { id: kpiId },
+      relations: ['supplier'],
+    });
     if (!kpi) throw new NotFoundException('Danh gia KPI khong ton tai');
     kpi.approved_by = userId;
     kpi.approved_at = new Date();
-    return this.repo.save(kpi);
+    const saved = await this.repo.save(kpi);
+
+    // Khi duyet KPI FAIL → tu dong blacklist NCC/NTP
+    if (kpi.result === 'FAIL' && kpi.supplier_id) {
+      await this.supplierRepo.update(kpi.supplier_id, {
+        is_blacklisted: true,
+      });
+    }
+
+    return saved;
   }
 
   async findFailed(): Promise<SubcontractorKpi[]> {

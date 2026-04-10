@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-
 import {
   Controller,
   Get,
@@ -18,7 +14,18 @@ import {
   UploadedFile,
   StreamableFile,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: string;
+    username: string;
+    employeeId: string;
+    privileges: string[];
+    contexts: string[];
+  };
+}
 import {
   ApiTags,
   ApiBearerAuth,
@@ -113,10 +120,12 @@ export class ProjectsController {
   async exportExcel(
     @Query('status') status?: string,
     @Query('stage') stage?: string,
+
     @Res({ passthrough: true }) res?: any,
   ): Promise<StreamableFile> {
     const buffer = await this.projectsService.exportToExcel(status, stage);
     const fileName = `DuAn_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -131,6 +140,7 @@ export class ProjectsController {
     @Res({ passthrough: true }) res?: any,
   ): Promise<StreamableFile> {
     const buffer = await this.projectsService.getExcelTemplate();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -471,11 +481,7 @@ export class ProjectsController {
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch(':id/bid-result')
   updateBidResult(@Param('id') id: string, @Body() dto: UpdateBidResultDto) {
-    return this.projectsService.update(id, {
-      status: dto.result as unknown as ProjectStatus,
-      bid_result_date: dto.bid_result_date,
-      lost_bid_reason: dto.lost_bid_reason,
-    });
+    return this.projectsService.updateBidResult(id, dto);
   }
 
   @ApiOperation({ summary: 'Cập nhật thông tin hợp đồng CĐT' })
@@ -501,9 +507,9 @@ export class ProjectsController {
   createNcr(
     @Param('id') projectId: string,
     @Body() dto: CreateNcrDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.ncrService.create(projectId, dto, req.user.sub);
+    return this.ncrService.create(projectId, dto, req.user.userId);
   }
 
   @ApiOperation({ summary: 'Chi tiết NCR' })
@@ -525,9 +531,9 @@ export class ProjectsController {
   assignNcr(
     @Param('ncrId') ncrId: string,
     @Body() dto: AssignNcrDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.ncrService.assign(ncrId, dto, req.user.sub);
+    return this.ncrService.assign(ncrId, dto, req.user.userId);
   }
 
   @ApiOperation({ summary: 'Ghi nhận đã xử lý NCR' })
@@ -543,9 +549,9 @@ export class ProjectsController {
   verifyNcr(
     @Param('ncrId') ncrId: string,
     @Body() dto: VerifyNcrDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.ncrService.verify(ncrId, dto, req.user.sub);
+    return this.ncrService.verify(ncrId, dto, req.user.userId);
   }
 
   @ApiOperation({ summary: 'Mở lại NCR đã đóng' })
@@ -559,6 +565,45 @@ export class ProjectsController {
   @Get(':id/ncrs/summary')
   getNcrSummary(@Param('id') projectId: string) {
     return this.ncrService.getSummary(projectId);
+  }
+
+  @ApiOperation({ summary: 'Upload hình ảnh NCR' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        phase: { type: 'string', enum: ['BEFORE', 'AFTER'] },
+      },
+    },
+  })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Post(':id/ncrs/:ncrId/attachments')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadNcrAttachment(
+    @Param('ncrId') ncrId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('phase') phase: 'BEFORE' | 'AFTER',
+    @Req() req: AuthenticatedRequest,
+  ) {
+    // TODO: Tich hop CloudStorageService de upload len Cloudinary/S3
+    // Hien tai luu file_url placeholder de san sang khi co cloud storage
+    const fileUrl = `/uploads/ncr/${ncrId}/${file.originalname}`;
+    return this.ncrService.addAttachment(
+      ncrId,
+      phase || 'BEFORE',
+      fileUrl,
+      file.originalname,
+      req.user.userId,
+    );
+  }
+
+  @ApiOperation({ summary: 'Xóa hình ảnh NCR' })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Delete(':id/ncrs/:ncrId/attachments/:attId')
+  removeNcrAttachment(@Param('attId') attId: string) {
+    return this.ncrService.removeAttachment(attId);
   }
 
   // ══════════════════════════════════════════
@@ -630,8 +675,8 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Duyệt đánh giá KPI' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch('kpis/:kpiId/approve')
-  approveKpi(@Param('kpiId') kpiId: string, @Req() req: any) {
-    return this.kpiService.approve(kpiId, req.user.sub);
+  approveKpi(@Param('kpiId') kpiId: string, @Req() req: AuthenticatedRequest) {
+    return this.kpiService.approve(kpiId, req.user.userId);
   }
 
   @ApiOperation({ summary: 'DS NCC/NTP không đạt KPI' })

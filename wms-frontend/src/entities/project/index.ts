@@ -62,6 +62,7 @@ export type {
   Project,
   ProjectStage,
   ProjectStatus,
+  ProjectType,
   ProjectAssignment,
   AssignmentRole,
   CostCategory,
@@ -86,6 +87,18 @@ export type {
   ProjectSummary,
   ProjectSettlement,
   SettlementLine,
+  // NCR
+  NcrCategory,
+  NcrSeverity,
+  NcrStatus,
+  NcrRelatedType,
+  NcrAttachment,
+  NonConformanceReport,
+  // Work Item
+  WorkItemMaster,
+  // Subcontractor KPI
+  KpiCriterion,
+  SubcontractorKpi,
 } from './types'
 export type { CreateProjectPayload, UpdateProjectPayload } from './api/useProjectMutations'
 export type { CreateAssignmentPayload } from './api/useProjectAssignments'

@@ -1,7 +1,25 @@
 export type ProjectStage = 'PLANNING' | 'PERMITTING' | 'CONSTRUCTION' | 'MANAGEMENT'
-export type ProjectStatus = 'DRAFT' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELED'
+export type ProjectStatus =
+  | 'DRAFT'
+  | 'BIDDING'
+  | 'WON_BID'
+  | 'LOST_BID'
+  | 'ACTIVE'
+  | 'ON_HOLD'
+  | 'SETTLING'
+  | 'SETTLED'
+  | 'WARRANTY'
+  | 'RETENTION_RELEASED'
+  | 'CANCELED'
+export type ProjectType = 'CONSTRUCTION' | 'DESIGN_BUILD' | 'MEP' | 'EPC'
 export type AssignmentRole = 'PROJECT_MANAGER' | 'MEMBER'
 export type WbsStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELED'
+
+// ── NCR Enums ──
+export type NcrCategory = 'QUALITY' | 'SCHEDULE' | 'SAFETY'
+export type NcrSeverity = 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED' | 'CRITICAL'
+export type NcrStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'VERIFIED' | 'CLOSED'
+export type NcrRelatedType = 'TASK' | 'WORK_ITEM' | 'SUBCONTRACT' | 'PROJECT' | 'COMPANY'
 
 export interface Project {
   id: string
@@ -14,6 +32,7 @@ export interface Project {
     organization_code: string
     organization_name: string
   } | null
+  project_type: ProjectType
   stage: ProjectStage
   status: ProjectStatus
   location: string | null
@@ -25,6 +44,19 @@ export interface Project {
   department_id: string | null
   department: { id: string; organization_code: string; organization_name: string } | null
   budget: number | null
+  // Bidding
+  bid_date: string | null
+  bid_result_date: string | null
+  lost_bid_reason: string | null
+  risk_assessment: Record<string, unknown> | null
+  // Contract
+  contract_number: string | null
+  contract_value: number | null
+  contract_date: string | null
+  // Warranty
+  warranty_start: string | null
+  warranty_end: string | null
+  retention_rate: number | null
   created_at: string
   updated_at: string
 }
@@ -340,4 +372,87 @@ export interface ProjectSettlement {
   settled_by: string | null
   lines: SettlementLine[]
   created_at: string
+}
+
+// ── NCR (Non-Conformance Report) ──
+
+export interface NcrAttachment {
+  id: string
+  ncr_id: string
+  phase: 'BEFORE' | 'AFTER'
+  file_url: string
+  file_name: string | null
+  uploaded_by: string | null
+  uploaded_at: string
+}
+
+export interface NonConformanceReport {
+  id: string
+  ncr_code: string
+  project_id: string
+  category: NcrCategory
+  severity: NcrSeverity
+  related_type: NcrRelatedType | null
+  related_id: string | null
+  description: string
+  location_detail: string | null
+  assigned_to: string | null
+  assigned_by: string | null
+  assignee: { id: string; employee_code: string; full_name: string } | null
+  assigner: { id: string; employee_code: string; full_name: string } | null
+  status: NcrStatus
+  resolution_note: string | null
+  verified_by: string | null
+  verifier: { id: string; employee_code: string; full_name: string } | null
+  verified_at: string | null
+  penalty_amount: number
+  subcontract_id: string | null
+  created_by: string | null
+  attachments: NcrAttachment[]
+  created_at: string
+  updated_at: string
+}
+
+// ── Work Item Master ──
+
+export interface WorkItemMaster {
+  id: string
+  item_code: string
+  item_name: string
+  unit: string | null
+  item_group: string | null
+  specifications: Record<string, unknown> | null
+  inspection_checklist: Record<string, unknown>[] | null
+  reference_images: { url: string; caption?: string }[] | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// ── Subcontractor KPI ──
+
+export interface KpiCriterion {
+  name: string
+  weight: number
+  score: number
+  max_score: number
+}
+
+export interface SubcontractorKpi {
+  id: string
+  supplier_id: string
+  supplier: { id: string; supplier_code: string; name: string } | null
+  project_id: string | null
+  project: { id: string; project_code: string; project_name: string } | null
+  evaluation_period: string | null
+  evaluation_date: string
+  criteria: KpiCriterion[]
+  total_score: number | null
+  result: 'PASS' | 'FAIL'
+  approved_by: string | null
+  approver: { id: string; employee_code: string; full_name: string } | null
+  approved_at: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
 }

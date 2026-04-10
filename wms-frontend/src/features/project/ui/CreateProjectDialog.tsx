@@ -36,7 +36,21 @@ const formSchema = z.object({
   description: z.string().max(1000).optional(),
   organization_id: z.string().uuid().optional().or(z.literal('')),
   stage: z.enum(['PLANNING', 'PERMITTING', 'CONSTRUCTION', 'MANAGEMENT']).optional(),
-  status: z.enum(['DRAFT', 'ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELED']).optional(),
+  status: z
+    .enum([
+      'DRAFT',
+      'BIDDING',
+      'WON_BID',
+      'LOST_BID',
+      'ACTIVE',
+      'ON_HOLD',
+      'SETTLING',
+      'SETTLED',
+      'WARRANTY',
+      'RETENTION_RELEASED',
+      'CANCELED',
+    ])
+    .optional(),
   location: z.string().max(255).optional(),
   gfa_m2: z.coerce.number().min(0, 'GFA không được âm').optional().or(z.literal('')),
   // Master Data FKs
@@ -290,9 +304,10 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DRAFT">Nháp</SelectItem>
+                      <SelectItem value="BIDDING">Đang đấu thầu</SelectItem>
                       <SelectItem value="ACTIVE">Đang triển khai</SelectItem>
                       <SelectItem value="ON_HOLD">Tạm dừng</SelectItem>
-                      <SelectItem value="COMPLETED">Hoàn thành</SelectItem>
+                      <SelectItem value="SETTLING">Đang quyết toán</SelectItem>
                       <SelectItem value="CANCELED">Hủy</SelectItem>
                     </SelectContent>
                   </Select>

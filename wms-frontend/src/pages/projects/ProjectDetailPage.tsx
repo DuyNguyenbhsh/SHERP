@@ -91,16 +91,28 @@ const stageLabel: Record<ProjectStage, string> = {
 }
 const statusLabel: Record<ProjectStatus, string> = {
   DRAFT: 'Nháp',
+  BIDDING: 'Đang đấu thầu',
+  WON_BID: 'Trúng thầu',
+  LOST_BID: 'Trượt thầu',
   ACTIVE: 'Đang triển khai',
   ON_HOLD: 'Tạm dừng',
-  COMPLETED: 'Hoàn thành',
+  SETTLING: 'Đang quyết toán',
+  SETTLED: 'Đã quyết toán',
+  WARRANTY: 'Bảo hành',
+  RETENTION_RELEASED: 'Đã giải tỏa bảo lưu',
   CANCELED: 'Hủy',
 }
 const statusVariant: Record<ProjectStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   DRAFT: 'outline',
+  BIDDING: 'secondary',
+  WON_BID: 'default',
+  LOST_BID: 'destructive',
   ACTIVE: 'default',
   ON_HOLD: 'secondary',
-  COMPLETED: 'default',
+  SETTLING: 'secondary',
+  SETTLED: 'default',
+  WARRANTY: 'outline',
+  RETENTION_RELEASED: 'default',
   CANCELED: 'destructive',
 }
 

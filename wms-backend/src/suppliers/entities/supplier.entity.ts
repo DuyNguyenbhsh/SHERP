@@ -100,6 +100,9 @@ export class Supplier {
   @Column({ default: true })
   is_active: boolean; // Xóa mềm (Tuyệt đối không xóa cứng để giữ lịch sử PO)
 
+  @Column({ default: false })
+  is_blacklisted: boolean; // NCC/NTP không đạt KPI → bị đưa vào danh sách đen
+
   // --- 5. LỊCH SỬ & CHỐNG XUNG ĐỘT ---
   @CreateDateColumn()
   created_at: Date;

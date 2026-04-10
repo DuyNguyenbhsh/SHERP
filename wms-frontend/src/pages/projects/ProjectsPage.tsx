@@ -47,26 +47,44 @@ const stageLabel: Record<ProjectStage, string> = {
 }
 const statusLabel: Record<ProjectStatus, string> = {
   DRAFT: 'Nháp',
+  BIDDING: 'Đang đấu thầu',
+  WON_BID: 'Trúng thầu',
+  LOST_BID: 'Trượt thầu',
   ACTIVE: 'Đang triển khai',
   ON_HOLD: 'Tạm dừng',
-  COMPLETED: 'Hoàn thành',
+  SETTLING: 'Đang quyết toán',
+  SETTLED: 'Đã quyết toán',
+  WARRANTY: 'Bảo hành',
+  RETENTION_RELEASED: 'Đã giải tỏa bảo lưu',
   CANCELED: 'Hủy',
 }
 const statusVariant: Record<ProjectStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   DRAFT: 'outline',
+  BIDDING: 'secondary',
+  WON_BID: 'default',
+  LOST_BID: 'destructive',
   ACTIVE: 'default',
   ON_HOLD: 'secondary',
-  COMPLETED: 'default',
+  SETTLING: 'secondary',
+  SETTLED: 'default',
+  WARRANTY: 'outline',
+  RETENTION_RELEASED: 'default',
   CANCELED: 'destructive',
 }
 const stages: ProjectStage[] = ['PLANNING', 'PERMITTING', 'CONSTRUCTION', 'MANAGEMENT']
 
 // ── Luồng trạng thái hợp lệ (mirror backend) ──
 const STATUS_TRANSITIONS: Record<ProjectStatus, ProjectStatus[]> = {
-  DRAFT: ['ACTIVE', 'CANCELED'],
-  ACTIVE: ['ON_HOLD', 'COMPLETED', 'CANCELED'],
+  DRAFT: ['BIDDING', 'ACTIVE', 'CANCELED'],
+  BIDDING: ['WON_BID', 'LOST_BID', 'CANCELED'],
+  WON_BID: ['ACTIVE', 'CANCELED'],
+  LOST_BID: [],
+  ACTIVE: ['ON_HOLD', 'SETTLING', 'CANCELED'],
   ON_HOLD: ['ACTIVE', 'CANCELED'],
-  COMPLETED: [],
+  SETTLING: ['SETTLED', 'ACTIVE'],
+  SETTLED: ['WARRANTY'],
+  WARRANTY: ['RETENTION_RELEASED'],
+  RETENTION_RELEASED: [],
   CANCELED: [],
 }
 
@@ -135,7 +153,10 @@ function InlineEditRow({
   saving,
   organizations,
 }: InlineEditRowProps) {
-  const isLocked = originalStatus === 'COMPLETED' || originalStatus === 'CANCELED'
+  const isLocked =
+    originalStatus === 'RETENTION_RELEASED' ||
+    originalStatus === 'LOST_BID' ||
+    originalStatus === 'CANCELED'
   const allowedStatuses = getAllowedStatuses(originalStatus)
 
   if (isLocked) {
@@ -309,7 +330,8 @@ function DisplayRow({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const isLocked = p.status === 'COMPLETED' || p.status === 'CANCELED'
+  const isLocked =
+    p.status === 'RETENTION_RELEASED' || p.status === 'LOST_BID' || p.status === 'CANCELED'
   return (
     <TableRow className={`group ${isLocked ? 'opacity-60' : ''}`}>
       <TableCell className="font-medium">

@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/shared/api/axios'
-import type { ProjectStage, ProjectStatus } from '../types'
+import type { ProjectStage, ProjectStatus, ProjectType } from '../types'
 
 export interface CreateProjectPayload {
   project_code: string
   project_name: string
   description?: string
   organization_id?: string
+  project_type?: ProjectType
   stage?: ProjectStage
   status?: ProjectStatus
   location?: string
@@ -15,6 +16,13 @@ export interface CreateProjectPayload {
   manager_id?: string
   department_id?: string
   budget?: number
+  bid_date?: string
+  bid_result_date?: string
+  lost_bid_reason?: string
+  contract_number?: string
+  contract_value?: number
+  contract_date?: string
+  retention_rate?: number
 }
 
 export interface UpdateProjectPayload {
@@ -22,6 +30,7 @@ export interface UpdateProjectPayload {
   project_name?: string
   description?: string
   organization_id?: string
+  project_type?: ProjectType
   stage?: ProjectStage
   status?: ProjectStatus
   location?: string
@@ -30,6 +39,13 @@ export interface UpdateProjectPayload {
   manager_id?: string
   department_id?: string
   budget?: number
+  bid_date?: string
+  bid_result_date?: string
+  lost_bid_reason?: string
+  contract_number?: string
+  contract_value?: number
+  contract_date?: string
+  retention_rate?: number
   change_reason?: string
 }
 
