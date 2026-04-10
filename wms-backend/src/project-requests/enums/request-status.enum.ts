@@ -7,6 +7,8 @@ export enum ProjectRequestStatus {
   DEPT_APPROVED = 'DEPT_APPROVED',
   /** Ban điều hành đã duyệt — chờ triển khai (tự tạo Project) */
   EXEC_APPROVED = 'EXEC_APPROVED',
+  /** Yêu cầu bổ sung — người duyệt yêu cầu bổ sung thông tin */
+  PENDING_INFO = 'PENDING_INFO',
   /** Đã từ chối */
   REJECTED = 'REJECTED',
   /** Đã triển khai — project đã được tạo */
@@ -29,13 +31,18 @@ export const REQUEST_STATUS_TRANSITIONS: Record<
   ],
   [ProjectRequestStatus.SUBMITTED]: [
     ProjectRequestStatus.DEPT_APPROVED,
+    ProjectRequestStatus.PENDING_INFO,
     ProjectRequestStatus.REJECTED,
   ],
   [ProjectRequestStatus.DEPT_APPROVED]: [
     ProjectRequestStatus.EXEC_APPROVED,
+    ProjectRequestStatus.PENDING_INFO,
     ProjectRequestStatus.REJECTED,
   ],
   [ProjectRequestStatus.EXEC_APPROVED]: [ProjectRequestStatus.DEPLOYED],
+  [ProjectRequestStatus.PENDING_INFO]: [
+    ProjectRequestStatus.SUBMITTED, // Gửi lại sau khi bổ sung
+  ],
   [ProjectRequestStatus.REJECTED]: [ProjectRequestStatus.DRAFT], // Cho phép sửa lại
   [ProjectRequestStatus.DEPLOYED]: [],
   [ProjectRequestStatus.CANCELED]: [],
@@ -47,6 +54,7 @@ export const STATUS_STEP_MAP: Record<ProjectRequestStatus, number> = {
   [ProjectRequestStatus.SUBMITTED]: 1,
   [ProjectRequestStatus.DEPT_APPROVED]: 2,
   [ProjectRequestStatus.EXEC_APPROVED]: 3,
+  [ProjectRequestStatus.PENDING_INFO]: -3,
   [ProjectRequestStatus.REJECTED]: -1,
   [ProjectRequestStatus.DEPLOYED]: 4,
   [ProjectRequestStatus.CANCELED]: -2,

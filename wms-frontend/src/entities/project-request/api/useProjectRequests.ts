@@ -118,3 +118,23 @@ export function useRejectRequest() {
 export function useCancelRequest() {
   return useWorkflowAction('cancel')
 }
+export function useRequestInfo() {
+  return useWorkflowAction('request-info')
+}
+
+export function useResubmitRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: { id: string } & Partial<CreatePayload>) => {
+      const { data } = await api.patch<ApiResponse<ProjectRequest>>(
+        `/project-requests/${id}/resubmit`,
+        payload,
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['project-requests'] })
+      void qc.invalidateQueries({ queryKey: ['project-request'] })
+    },
+  })
+}

@@ -17,6 +17,7 @@ import {
 } from './enums/request-status.enum';
 import { ProjectsService } from '../projects/projects.service';
 import { ProjectStage } from '../projects/enums/project.enum';
+import { RequestAttachment } from './entities/request-attachment.entity';
 import { ExcelService, type ExcelColumnDef } from '../shared/excel';
 
 @Injectable()
@@ -26,6 +27,8 @@ export class ProjectRequestsService {
     private requestRepo: Repository<ProjectRequest>,
     @InjectRepository(WorkflowLog)
     private logRepo: Repository<WorkflowLog>,
+    @InjectRepository(RequestAttachment)
+    private attachmentRepo: Repository<RequestAttachment>,
     private dataSource: DataSource,
     @Inject(forwardRef(() => ProjectsService))
     private projectsService: ProjectsService,
@@ -107,7 +110,7 @@ export class ProjectRequestsService {
   async findOne(id: string) {
     const request = await this.requestRepo.findOne({
       where: { id },
-      relations: ['workflow_logs'],
+      relations: ['workflow_logs', 'attachments'],
     });
     if (!request)
       throw new NotFoundException({
@@ -474,6 +477,134 @@ export class ProjectRequestsService {
     );
 
     return { status: 'success', message: 'Đã hủy yêu cầu', data: request };
+  }
+
+  // ── YÊU CẦU BỔ SUNG ──
+
+  /** Người duyệt yêu cầu bổ sung thông tin */
+  async requestInfo(
+    id: string,
+    userId: string,
+    userName?: string,
+    actorRole?: string,
+    reason?: string,
+  ) {
+    const request = await this.requestRepo.findOne({ where: { id } });
+    if (!request)
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Yêu cầu không tồn tại!',
+        data: null,
+      });
+
+    this.validateTransition(request.status, ProjectRequestStatus.PENDING_INFO);
+
+    const fromStatus = request.status;
+    request.pending_return_status = fromStatus;
+    request.status = ProjectRequestStatus.PENDING_INFO;
+    await this.requestRepo.save(request);
+
+    await this.logAction(
+      id,
+      fromStatus,
+      request.status,
+      'REQUEST_INFO',
+      userId,
+      userName,
+      actorRole,
+      reason,
+    );
+
+    return {
+      status: 'success',
+      message: 'Đã yêu cầu bổ sung thông tin',
+      data: request,
+    };
+  }
+
+  /** Người đề xuất cập nhật và gửi lại sau khi bổ sung */
+  async resubmit(
+    id: string,
+    dto: UpdateProjectRequestDto,
+    userId: string,
+    userName?: string,
+  ) {
+    const request = await this.requestRepo.findOne({ where: { id } });
+    if (!request)
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Yêu cầu không tồn tại!',
+        data: null,
+      });
+
+    if (request.status !== ProjectRequestStatus.PENDING_INFO) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Chỉ có thể gửi lại khi trạng thái là "Yêu cầu bổ sung". Hiện tại: "${request.status}"`,
+        data: null,
+      });
+    }
+
+    if (request.created_by !== userId) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Chỉ người đề xuất mới được phép cập nhật và gửi lại',
+        data: null,
+      });
+    }
+
+    // Cập nhật thông tin bổ sung
+    Object.assign(request, dto);
+    request.status = ProjectRequestStatus.SUBMITTED;
+    request.pending_return_status = null as unknown as string;
+    await this.requestRepo.save(request);
+
+    await this.logAction(
+      id,
+      ProjectRequestStatus.PENDING_INFO,
+      request.status,
+      'RESUBMIT',
+      userId,
+      userName,
+      'STAFF',
+      'Đã bổ sung thông tin và gửi lại',
+    );
+
+    return {
+      status: 'success',
+      message: 'Đã cập nhật và gửi lại yêu cầu',
+      data: request,
+    };
+  }
+
+  // ── ĐÍNH KÈM FILE ──
+
+  async addAttachment(
+    requestId: string,
+    fileUrl: string,
+    fileName: string,
+    fileSize: number,
+    uploadedByRole: string,
+    userId: string,
+    userName?: string,
+  ): Promise<RequestAttachment> {
+    const att = this.attachmentRepo.create({
+      request_id: requestId,
+      file_url: fileUrl,
+      file_name: fileName,
+      file_size: fileSize,
+      uploaded_by_role: uploadedByRole,
+      uploaded_by: userId,
+      uploaded_by_name: userName,
+    });
+    return this.attachmentRepo.save(att);
+  }
+
+  async removeAttachment(attachmentId: string): Promise<void> {
+    const result = await this.attachmentRepo.delete(attachmentId);
+    if (result.affected === 0) {
+      throw new NotFoundException('Tệp đính kèm không tồn tại');
+    }
   }
 
   // ── EXPORT EXCEL TỜ TRÌNH ──

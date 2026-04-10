@@ -4,12 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  ManyToOne,
-  JoinColumn,
   OneToMany,
 } from 'typeorm';
 import { ProjectRequestStatus } from '../enums/request-status.enum';
 import { WorkflowLog } from './workflow-log.entity';
+import { RequestAttachment } from './request-attachment.entity';
 
 @Entity('project_requests')
 export class ProjectRequest {
@@ -86,10 +85,17 @@ export class ProjectRequest {
   @Column({ type: 'text', nullable: true })
   rejection_reason: string;
 
+  /** Trạng thái trước khi chuyển sang PENDING_INFO — để biết gửi lại về bước nào */
+  @Column({ length: 30, nullable: true })
+  pending_return_status: string;
+
   // ── Relations ──
 
   @OneToMany(() => WorkflowLog, (log) => log.request, { cascade: true })
   workflow_logs: WorkflowLog[];
+
+  @OneToMany(() => RequestAttachment, (att) => att.request, { cascade: true })
+  attachments: RequestAttachment[];
 
   // ── Timestamps ──
 

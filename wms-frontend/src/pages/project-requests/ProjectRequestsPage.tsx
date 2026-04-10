@@ -16,6 +16,8 @@ import {
   Rocket,
   Ban,
   Pencil,
+  AlertTriangle,
+  RotateCcw,
   Trash2,
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
@@ -52,11 +54,17 @@ import {
   useApproveDept,
   useApproveExec,
   useRejectRequest,
+  useRequestInfo,
+  useResubmitRequest,
   STATUS_LABELS,
   WORKFLOW_STEPS,
   STATUS_STEP_MAP,
 } from '@/entities/project-request'
-import type { ProjectRequest, ProjectRequestStatus } from '@/entities/project-request'
+import type {
+  ProjectRequest,
+  ProjectRequestStatus,
+  RequestAttachment,
+} from '@/entities/project-request'
 import { useAuthStore } from '@/features/auth'
 
 // ── Helpers ──
@@ -74,6 +82,7 @@ const statusVariant: Record<
   SUBMITTED: 'secondary',
   DEPT_APPROVED: 'secondary',
   EXEC_APPROVED: 'default',
+  PENDING_INFO: 'secondary',
   REJECTED: 'destructive',
   DEPLOYED: 'default',
   CANCELED: 'outline',
@@ -143,6 +152,18 @@ function WorkflowStepper({ status }: { status: ProjectRequestStatus }) {
       {isRejected && (
         <div className="ml-2 flex items-center gap-1 text-xs text-red-600 font-medium">
           <Ban className="h-3.5 w-3.5" /> Từ chối
+        </div>
+      )}
+
+      {status === 'PENDING_INFO' && (
+        <div className="ml-2 flex items-center gap-1 text-xs text-amber-700 font-medium">
+          <AlertTriangle className="h-3.5 w-3.5" /> Yêu cầu bổ sung
+        </div>
+      )}
+
+      {isCanceled && (
+        <div className="ml-2 flex items-center gap-1 text-xs text-muted-foreground font-medium">
+          <Ban className="h-3.5 w-3.5" /> Đã hủy
         </div>
       )}
     </div>
@@ -478,6 +499,10 @@ function RequestDetailDialog({
   const approveDeptMut = useApproveDept()
   const approveExecMut = useApproveExec()
   const rejectMut = useRejectRequest()
+
+  const requestInfoMut = useRequestInfo()
+
+  const resubmitMut = useResubmitRequest()
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
 
@@ -533,6 +558,8 @@ function RequestDetailDialog({
   const canApproveDept = r.status === 'SUBMITTED'
   const canApproveExec = r.status === 'DEPT_APPROVED'
   const canReject = r.status === 'SUBMITTED' || r.status === 'DEPT_APPROVED'
+  const canRequestInfo = r.status === 'SUBMITTED' || r.status === 'DEPT_APPROVED'
+  const canResubmit = r.status === 'PENDING_INFO'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -579,9 +606,69 @@ function RequestDetailDialog({
               <span className="text-muted-foreground">Nội dung:</span> {r.description}
             </div>
           )}
+          {r.status === 'PENDING_INFO' && (
+            <div className="col-span-2 rounded bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800">
+              <span className="font-semibold">Yêu cầu bổ sung:</span> Người duyệt yêu cầu bổ sung
+              thông tin. Vui lòng cập nhật và gửi lại.
+            </div>
+          )}
+          {r.attachments && r.attachments.length > 0 && (
+            <div className="col-span-2 space-y-1">
+              <span className="text-muted-foreground font-semibold text-xs">Đính kèm:</span>
+              <div className="flex flex-wrap gap-2">
+                {r.attachments.map((att: RequestAttachment) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1 text-xs border rounded px-2 py-1"
+                  >
+                    <FileDown className="h-3 w-3" />
+                    <span>{att.file_name}</span>
+                    {att.uploaded_by_role === 'APPROVER' && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[9px] ml-1 bg-blue-100 text-blue-700"
+                      >
+                        BP Duyệt bổ sung
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {r.rejection_reason && (
             <div className="col-span-2 rounded bg-red-50 border border-red-200 px-3 py-2 text-red-700">
               <span className="font-semibold">Lý do từ chối:</span> {r.rejection_reason}
+            </div>
+          )}
+          {r.status === 'PENDING_INFO' && (
+            <div className="col-span-2 rounded bg-amber-50 border border-amber-200 px-3 py-2 text-amber-800">
+              <span className="font-semibold">⚠️ Yêu cầu bổ sung:</span> Người duyệt yêu cầu bổ sung
+              thông tin. Vui lòng cập nhật và gửi lại.
+            </div>
+          )}
+          {r.attachments && r.attachments.length > 0 && (
+            <div className="col-span-2 space-y-1">
+              <span className="text-muted-foreground font-semibold text-xs">Đính kèm:</span>
+              <div className="flex flex-wrap gap-2">
+                {r.attachments.map((att: RequestAttachment) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center gap-1 text-xs border rounded px-2 py-1"
+                  >
+                    <FileDown className="h-3 w-3" />
+                    <span>{att.file_name}</span>
+                    {att.uploaded_by_role === 'APPROVER' && (
+                      <Badge
+                        variant="secondary"
+                        className="text-[9px] ml-1 bg-blue-100 text-blue-700"
+                      >
+                        BP Duyệt bổ sung
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
           {r.deployed_project_id && (
@@ -607,7 +694,11 @@ function RequestDetailDialog({
                         ? 'bg-green-500'
                         : log.action === 'REJECT'
                           ? 'bg-red-500'
-                          : 'bg-blue-500'
+                          : log.action === 'REQUEST_INFO'
+                            ? 'bg-amber-500'
+                            : log.action === 'RESUBMIT'
+                              ? 'bg-cyan-500'
+                              : 'bg-blue-500'
                     }`}
                   />
                   <div>
@@ -630,7 +721,12 @@ function RequestDetailDialog({
         )}
 
         {/* Actions */}
-        {(canSubmit || canApproveDept || canApproveExec || canReject) && (
+        {(canSubmit ||
+          canApproveDept ||
+          canApproveExec ||
+          canReject ||
+          canRequestInfo ||
+          canResubmit) && (
           <div className="space-y-3 border-t pt-3">
             <Input
               placeholder="Ghi chú / Lý do (bắt buộc khi từ chối)..."
@@ -686,6 +782,48 @@ function RequestDetailDialog({
                   <X className="h-3 w-3" /> Từ chối
                 </Button>
               )}
+              {canRequestInfo && (
+                <Button
+                  size="sm"
+                  className="gap-1 bg-amber-500 hover:bg-amber-600 text-white"
+                  onClick={() => {
+                    if (!comment.trim()) {
+                      toast.error('Vui lòng nhập lý do yêu cầu bổ sung')
+                      return
+                    }
+
+                    doAction(requestInfoMut, 'Đã yêu cầu bổ sung thông tin')
+                  }}
+                  disabled={acting}
+                >
+                  <AlertTriangle className="h-3 w-3" /> Yêu cầu bổ sung
+                </Button>
+              )}
+              {canResubmit && (
+                <Button
+                  size="sm"
+                  className="gap-1 bg-cyan-600 hover:bg-cyan-700 text-white"
+                  onClick={() => {
+                    setActing(true)
+
+                    resubmitMut.mutate(
+                      { id: requestId },
+                      {
+                        onSuccess: () => {
+                          toast.success('Đã cập nhật và gửi lại')
+                          setComment('')
+                        },
+                        onError: (err: unknown) =>
+                          toast.error(getErrorMessage(err, 'Gửi lại thất bại')),
+                        onSettled: () => setActing(false),
+                      },
+                    )
+                  }}
+                  disabled={acting}
+                >
+                  <RotateCcw className="h-3 w-3" /> Cập nhật & Gửi lại
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -699,18 +837,23 @@ function RequestDetailDialog({
         )}
 
         {/* Export only for completed/deployed */}
-        {!canSubmit && !canApproveDept && !canApproveExec && !canReject && (
-          <div className="flex justify-end border-t pt-3">
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1"
-              onClick={() => void handleExportExcel()}
-            >
-              <FileDown className="h-3 w-3" /> Xuất tờ trình Excel
-            </Button>
-          </div>
-        )}
+        {!canSubmit &&
+          !canApproveDept &&
+          !canApproveExec &&
+          !canReject &&
+          !canRequestInfo &&
+          !canResubmit && (
+            <div className="flex justify-end border-t pt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1"
+                onClick={() => void handleExportExcel()}
+              >
+                <FileDown className="h-3 w-3" /> Xuất tờ trình Excel
+              </Button>
+            </div>
+          )}
       </DialogContent>
     </Dialog>
   )

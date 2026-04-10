@@ -196,6 +196,68 @@ export class ProjectRequestsController {
     );
   }
 
+  @ApiOperation({
+    summary:
+      'Yêu cầu bổ sung thông tin (SUBMITTED/DEPT_APPROVED → PENDING_INFO)',
+  })
+  @RequirePrivilege('MANAGE_PROJECTS')
+  @Patch(':id/request-info')
+  requestInfo(
+    @Param('id') id: string,
+    @Body() dto: ActionRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.requestInfo(
+      id,
+      req.user.userId,
+      req.user.username,
+      req.user.role,
+      dto.comment,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Cập nhật và gửi lại sau khi bổ sung (PENDING_INFO → SUBMITTED)',
+  })
+  @Patch(':id/resubmit')
+  resubmit(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.resubmit(id, dto, req.user.userId, req.user.username);
+  }
+
+  @ApiOperation({ summary: 'Đính kèm file cho yêu cầu' })
+  @Post(':id/attachments')
+  addAttachment(
+    @Param('id') requestId: string,
+    @Body()
+    body: {
+      file_url: string;
+      file_name: string;
+      file_size?: number;
+      uploaded_by_role?: string;
+    },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.addAttachment(
+      requestId,
+      body.file_url,
+      body.file_name,
+      body.file_size ?? 0,
+      body.uploaded_by_role ?? 'PROPOSER',
+      req.user.userId,
+      req.user.username,
+    );
+  }
+
+  @ApiOperation({ summary: 'Xóa file đính kèm' })
+  @Delete('attachments/:attId')
+  removeAttachment(@Param('attId') attId: string) {
+    return this.service.removeAttachment(attId);
+  }
+
   @ApiOperation({ summary: 'Hủy yêu cầu' })
   @Patch(':id/cancel')
   cancel(
