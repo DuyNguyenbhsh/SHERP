@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
-  ConflictException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -11,11 +10,13 @@ import { Repository, DataSource } from 'typeorm';
 import { ProjectRequest } from './entities/project-request.entity';
 import { WorkflowLog } from './entities/workflow-log.entity';
 import { CreateProjectRequestDto } from './dto/create-project-request.dto';
+import { UpdateProjectRequestDto } from './dto/update-project-request.dto';
 import {
   ProjectRequestStatus,
   REQUEST_STATUS_TRANSITIONS,
 } from './enums/request-status.enum';
 import { ProjectsService } from '../projects/projects.service';
+import { ProjectStage } from '../projects/enums/project.enum';
 import { ExcelService, type ExcelColumnDef } from '../shared/excel';
 
 @Injectable()
@@ -115,6 +116,80 @@ export class ProjectRequestsService {
         data: null,
       });
     return { status: 'success', message: 'Chi tiết yêu cầu', data: request };
+  }
+
+  // ── UPDATE (chỉ khi DRAFT) ──
+
+  async update(id: string, dto: UpdateProjectRequestDto, userId: string) {
+    const request = await this.requestRepo.findOne({ where: { id } });
+    if (!request)
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Yêu cầu không tồn tại!',
+        data: null,
+      });
+
+    if (request.status !== ProjectRequestStatus.DRAFT) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Chỉ được sửa yêu cầu ở trạng thái Bản nháp (DRAFT). Trạng thái hiện tại: "${request.status}"`,
+        data: null,
+      });
+    }
+
+    if (request.created_by !== userId) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Chỉ người tạo yêu cầu mới được phép sửa',
+        data: null,
+      });
+    }
+
+    Object.assign(request, dto);
+    const saved = await this.requestRepo.save(request);
+    return {
+      status: 'success',
+      message: `Cập nhật yêu cầu ${request.request_code} thành công`,
+      data: saved,
+    };
+  }
+
+  // ── SOFT DELETE (chỉ khi DRAFT) ──
+
+  async remove(id: string, userId: string) {
+    const request = await this.requestRepo.findOne({ where: { id } });
+    if (!request)
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Yêu cầu không tồn tại!',
+        data: null,
+      });
+
+    if (request.status !== ProjectRequestStatus.DRAFT) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Chỉ được xóa yêu cầu ở trạng thái Bản nháp (DRAFT). Trạng thái hiện tại: "${request.status}"`,
+        data: null,
+      });
+    }
+
+    if (request.created_by !== userId) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Chỉ người tạo yêu cầu mới được phép xóa',
+        data: null,
+      });
+    }
+
+    // Soft delete: chuyển sang CANCELED thay vì xóa hẳn
+    request.status = ProjectRequestStatus.CANCELED;
+    await this.requestRepo.save(request);
+
+    return {
+      status: 'success',
+      message: `Đã xóa yêu cầu ${request.request_code}`,
+      data: null,
+    };
   }
 
   // ── WORKFLOW ACTIONS ──
@@ -279,7 +354,8 @@ export class ProjectRequestsService {
           investor_id: request.investor_id ?? undefined,
           manager_id: request.manager_id ?? undefined,
           department_id: request.department_id ?? undefined,
-          stage: (request.proposed_stage as any) ?? 'PLANNING',
+          stage:
+            (request.proposed_stage as ProjectStage) ?? ProjectStage.PLANNING,
         });
 
         request.status = ProjectRequestStatus.DEPLOYED;
@@ -305,11 +381,13 @@ export class ProjectRequestsService {
           message: `Ban điều hành đã duyệt. Dự án ${request.proposed_project_code} đã được tạo tự động.`,
           data: request,
         };
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Nếu tạo project lỗi (VD: trùng mã) → vẫn approve nhưng không deploy
+        const errMsg =
+          err instanceof Error ? err.message : 'Lỗi không xác định';
         return {
           status: 'success',
-          message: `Ban điều hành đã duyệt. Lưu ý: Không thể tạo dự án tự động — ${err.message}`,
+          message: `Ban điều hành đã duyệt. Lưu ý: Không thể tạo dự án tự động — ${errMsg}`,
           data: request,
         };
       }

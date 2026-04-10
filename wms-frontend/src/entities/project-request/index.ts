@@ -2,6 +2,8 @@ export {
   useProjectRequests,
   useProjectRequest,
   useCreateProjectRequest,
+  useUpdateProjectRequest,
+  useDeleteProjectRequest,
   useSubmitRequest,
   useApproveDept,
   useApproveExec,

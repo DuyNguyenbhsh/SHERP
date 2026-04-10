@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { getErrorMessage, api } from '@/shared/api/axios'
 import {
@@ -15,6 +15,8 @@ import {
   CircleX,
   Rocket,
   Ban,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -44,6 +46,8 @@ import {
   useProjectRequests,
   useProjectRequest,
   useCreateProjectRequest,
+  useUpdateProjectRequest,
+  useDeleteProjectRequest,
   useSubmitRequest,
   useApproveDept,
   useApproveExec,
@@ -52,7 +56,8 @@ import {
   WORKFLOW_STEPS,
   STATUS_STEP_MAP,
 } from '@/entities/project-request'
-import type { ProjectRequestStatus } from '@/entities/project-request'
+import type { ProjectRequest, ProjectRequestStatus } from '@/entities/project-request'
+import { useAuthStore } from '@/features/auth'
 
 // ── Helpers ──
 
@@ -264,6 +269,192 @@ function CreateRequestDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ══════════════════════════════════════════
+// EDIT DIALOG
+// ══════════════════════════════════════════
+
+function EditRequestDialog({
+  request,
+  open,
+  onOpenChange,
+}: {
+  request: ProjectRequest
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
+  const updateMut = useUpdateProjectRequest()
+  const [submitting, setSubmitting] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(createSchema),
+    defaultValues: {
+      title: request.title,
+      description: request.description ?? '',
+      proposed_project_code: request.proposed_project_code,
+      proposed_project_name: request.proposed_project_name,
+      location: request.location ?? '',
+      gfa_m2: request.gfa_m2 ?? undefined,
+      budget: request.budget ?? undefined,
+    },
+  })
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        title: request.title,
+        description: request.description ?? '',
+        proposed_project_code: request.proposed_project_code,
+        proposed_project_name: request.proposed_project_name,
+        location: request.location ?? '',
+        gfa_m2: request.gfa_m2 ?? undefined,
+        budget: request.budget ?? undefined,
+      })
+    }
+  }, [open, request, reset])
+
+  const onSubmit = (v: z.infer<typeof createSchema>) => {
+    setSubmitting(true)
+    updateMut.mutate(
+      { id: request.id, ...v },
+      {
+        onSuccess: () => {
+          toast.success('Cap nhat thanh cong')
+          onOpenChange(false)
+        },
+        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Cap nhat that bai')),
+        onSettled: () => setSubmitting(false),
+      },
+    )
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!submitting) onOpenChange(o)
+      }}
+    >
+      <DialogContent className="sm:max-w-[580px]">
+        <DialogHeader>
+          <DialogTitle>Chinh sua Yeu cau: {request.request_code}</DialogTitle>
+          <DialogDescription>
+            Chi cho phep sua khi trang thai la Ban nhap (DRAFT).
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-3 py-2">
+          <div className="space-y-1">
+            <Label>Tieu de to trinh *</Label>
+            <Input {...register('title')} />
+            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+          </div>
+          <div className="space-y-1">
+            <Label>Noi dung / Mo ta</Label>
+            <Input {...register('description')} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label>Ma du an de xuat *</Label>
+              <Input {...register('proposed_project_code')} />
+              {errors.proposed_project_code && (
+                <p className="text-xs text-destructive">{errors.proposed_project_code.message}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Ten du an *</Label>
+              <Input {...register('proposed_project_name')} />
+              {errors.proposed_project_name && (
+                <p className="text-xs text-destructive">{errors.proposed_project_name.message}</p>
+              )}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label>Dia diem</Label>
+              <Input {...register('location')} />
+            </div>
+            <div className="space-y-1">
+              <Label>GFA (m2)</Label>
+              <Input type="number" step="0.01" {...register('gfa_m2')} />
+            </div>
+            <div className="space-y-1">
+              <Label>Ngan sach (VND)</Label>
+              <Input type="number" step="1" {...register('budget')} />
+            </div>
+          </div>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Huy
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Luu
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ══════════════════════════════════════════
+// DELETE CONFIRM DIALOG
+// ══════════════════════════════════════════
+
+function DeleteConfirmDialog({
+  request,
+  open,
+  onOpenChange,
+}: {
+  request: ProjectRequest
+  open: boolean
+  onOpenChange: (o: boolean) => void
+}) {
+  const deleteMut = useDeleteProjectRequest()
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = () => {
+    setDeleting(true)
+    deleteMut.mutate(request.id, {
+      onSuccess: () => {
+        toast.success(`Da xoa yeu cau ${request.request_code}`)
+        onOpenChange(false)
+      },
+      onError: (err: unknown) => toast.error(getErrorMessage(err, 'Xoa that bai')),
+      onSettled: () => setDeleting(false),
+    })
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!deleting) onOpenChange(o)
+      }}
+    >
+      <DialogContent className="sm:max-w-[420px]">
+        <DialogHeader>
+          <DialogTitle>Xac nhan xoa</DialogTitle>
+          <DialogDescription>
+            Ban co chac muon xoa yeu cau <strong>{request.request_code}</strong> — &quot;
+            {request.title}&quot;? Hanh dong nay khong the hoan tac.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={deleting}>
+            Huy
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Xoa
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -531,8 +722,14 @@ function RequestDetailDialog({
 
 export function ProjectRequestsPage(): React.JSX.Element {
   const { data: requests, isLoading } = useProjectRequests()
+  const user = useAuthStore((s) => s.user)
   const [createOpen, setCreateOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [editRequest, setEditRequest] = useState<ProjectRequest | null>(null)
+  const [deleteRequest, setDeleteRequest] = useState<ProjectRequest | null>(null)
+
+  const canEditDelete = (r: ProjectRequest) =>
+    r.status === 'DRAFT' && (user?.role === 'ADMIN' || user?.id === r.created_by)
 
   return (
     <div className="space-y-6">
@@ -568,7 +765,7 @@ export function ProjectRequestsPage(): React.JSX.Element {
               <TableHead>Tiến trình</TableHead>
               <TableHead>Người đề xuất</TableHead>
               <TableHead className="w-[80px]">Ngày</TableHead>
-              <TableHead className="w-[60px]" />
+              <TableHead className="w-[100px] text-center">Thao tác</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -611,18 +808,49 @@ export function ProjectRequestsPage(): React.JSX.Element {
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(r.created_at).toLocaleDateString('vi-VN')}
                   </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDetailId(r.id)
-                      }}
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="Xem chi tiết"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDetailId(r.id)
+                        }}
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </Button>
+                      {canEditDelete(r) && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                            title="Sửa"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditRequest(r)
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive"
+                            title="Xóa"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteRequest(r)
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -637,6 +865,26 @@ export function ProjectRequestsPage(): React.JSX.Element {
           open={!!detailId}
           onOpenChange={(o) => {
             if (!o) setDetailId(null)
+          }}
+        />
+      )}
+
+      {editRequest && (
+        <EditRequestDialog
+          request={editRequest}
+          open={!!editRequest}
+          onOpenChange={(o) => {
+            if (!o) setEditRequest(null)
+          }}
+        />
+      )}
+
+      {deleteRequest && (
+        <DeleteConfirmDialog
+          request={deleteRequest}
+          open={!!deleteRequest}
+          onOpenChange={(o) => {
+            if (!o) setDeleteRequest(null)
           }}
         />
       )}

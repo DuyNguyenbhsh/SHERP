@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -19,11 +20,24 @@ import {
 } from '@nestjs/swagger';
 import { ProjectRequestsService } from './project-requests.service';
 import { CreateProjectRequestDto } from './dto/create-project-request.dto';
+import { UpdateProjectRequestDto } from './dto/update-project-request.dto';
 import { ActionRequestDto } from './dto/action-request.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
 import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
 import { ProjectRequestStatus } from './enums/request-status.enum';
+import { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    userId: string;
+    username: string;
+    employeeId: string;
+    privileges: string[];
+    contexts: string[];
+    role?: string;
+  };
+}
 
 @ApiTags('Project Requests - Yêu cầu & Phê duyệt Dự án')
 @ApiBearerAuth('bearer')
@@ -46,9 +60,11 @@ export class ProjectRequestsController {
   @Get('excel/export')
   async exportExcel(
     @Query('status') status?: string,
+
     @Res({ passthrough: true }) res?: any,
   ): Promise<StreamableFile> {
     const buffer = await this.service.exportToExcel(status);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -60,9 +76,28 @@ export class ProjectRequestsController {
   @ApiOperation({ summary: 'Tạo yêu cầu dự án mới' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post()
-  create(@Body() dto: CreateProjectRequestDto, @Req() req: any) {
+  create(
+    @Body() dto: CreateProjectRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const user = req.user;
     return this.service.create(dto, user.userId, user.username);
+  }
+
+  @ApiOperation({ summary: 'Sửa yêu cầu (chỉ khi DRAFT)' })
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectRequestDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.update(id, dto, req.user.userId);
+  }
+
+  @ApiOperation({ summary: 'Xóa yêu cầu (soft delete, chỉ khi DRAFT)' })
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.remove(id, req.user.userId);
   }
 
   // ── PARAM ROUTES ──
@@ -77,9 +112,11 @@ export class ProjectRequestsController {
   @Get(':id/excel/export')
   async exportSingle(
     @Param('id') id: string,
+
     @Res({ passthrough: true }) res?: any,
   ): Promise<StreamableFile> {
     const buffer = await this.service.exportSingleToExcel(id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     res.set({
       'Content-Type':
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -95,7 +132,7 @@ export class ProjectRequestsController {
   submit(
     @Param('id') id: string,
     @Body() dto: ActionRequestDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.submit(
       id,
@@ -113,7 +150,7 @@ export class ProjectRequestsController {
   approveDept(
     @Param('id') id: string,
     @Body() dto: ActionRequestDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.approveDept(
       id,
@@ -132,7 +169,7 @@ export class ProjectRequestsController {
   approveExec(
     @Param('id') id: string,
     @Body() dto: ActionRequestDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.approveExec(
       id,
@@ -148,7 +185,7 @@ export class ProjectRequestsController {
   reject(
     @Param('id') id: string,
     @Body() dto: ActionRequestDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.reject(
       id,
@@ -164,7 +201,7 @@ export class ProjectRequestsController {
   cancel(
     @Param('id') id: string,
     @Body() dto: ActionRequestDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.cancel(
       id,

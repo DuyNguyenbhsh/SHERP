@@ -55,6 +55,37 @@ export function useCreateProjectRequest() {
   })
 }
 
+type UpdatePayload = Partial<CreatePayload>
+
+export function useUpdateProjectRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: UpdatePayload & { id: string }) => {
+      const { data } = await api.patch<ApiResponse<ProjectRequest>>(
+        `/project-requests/${id}`,
+        payload,
+      )
+      return data.data
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['project-requests'] })
+      void qc.invalidateQueries({ queryKey: ['project-request'] })
+    },
+  })
+}
+
+export function useDeleteProjectRequest() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/project-requests/${id}`)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['project-requests'] })
+    },
+  })
+}
+
 function useWorkflowAction(endpoint: string) {
   const qc = useQueryClient()
   return useMutation({
