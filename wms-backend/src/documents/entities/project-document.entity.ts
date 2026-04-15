@@ -47,6 +47,20 @@ export class ProjectDocument {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // ── Document Control v2.1 — Version & Lifecycle ──
+
+  @Column({ type: 'uuid', nullable: true })
+  current_version_id: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  approved_version_id: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  doc_type: string | null;
+
+  @Column({ type: 'text', array: true, nullable: true })
+  tags: string[] | null;
+
   @OneToMany(() => DocumentNotification, (n) => n.document)
   notifications: DocumentNotification[];
 

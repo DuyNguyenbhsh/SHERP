@@ -11,14 +11,16 @@ import {
   BellRing,
   CheckCheck,
   AlertTriangle,
-  Clock,
-  ShieldCheck,
   ExternalLink,
+  Upload,
+  History,
+  Send,
+  Activity,
+  MoreVertical,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -29,46 +31,29 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   useFolders,
   useDeleteDocument,
   useDocumentNotifications,
   useGenerateNotifications,
   useMarkAllNotificationsRead,
 } from '@/entities/document'
-import type {
-  ProjectFolder,
-  ProjectDocument,
-  DocumentStatus,
-  DocumentNotification,
-} from '@/entities/document'
+import type { ProjectFolder, ProjectDocument, DocumentNotification } from '@/entities/document'
 import { useProjects } from '@/entities/project'
 import { AddDocumentDialog } from '@/features/document/ui/AddDocumentDialog'
+import { UploadVersionDialog } from '@/features/document/ui/UploadVersionDialog'
+import { VersionHistoryDialog } from '@/features/document/ui/VersionHistoryDialog'
+import { SubmitApprovalDialog } from '@/features/document/ui/SubmitApprovalDialog'
+import { AuditTimelineDialog } from '@/features/document/ui/AuditTimelineDialog'
+import { DocumentStatusBadge } from '@/features/document/ui/DocumentStatusBadge'
 
 // ── Status helpers ──
-
-const statusConfig: Record<
-  DocumentStatus,
-  {
-    label: string
-    variant: 'default' | 'secondary' | 'destructive' | 'outline'
-    icon: typeof ShieldCheck
-  }
-> = {
-  VALID: { label: 'Còn hiệu lực', variant: 'default', icon: ShieldCheck },
-  EXPIRING_SOON: { label: 'Sắp hết hạn', variant: 'secondary', icon: Clock },
-  EXPIRED: { label: 'Đã hết hạn', variant: 'destructive', icon: AlertTriangle },
-}
-
-function StatusBadge({ status }: { status: DocumentStatus }) {
-  const cfg = statusConfig[status]
-  const Icon = cfg.icon
-  return (
-    <Badge variant={cfg.variant} className="gap-1">
-      <Icon className="h-3 w-3" />
-      {cfg.label}
-    </Badge>
-  )
-}
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '—'
@@ -87,14 +72,22 @@ function daysUntilExpiry(dateStr: string | null): number | null {
 
 // ── Document Table per Folder ──
 
+type DocAction =
+  | { kind: 'upload'; doc: ProjectDocument }
+  | { kind: 'history'; doc: ProjectDocument }
+  | { kind: 'submit'; doc: ProjectDocument }
+  | { kind: 'audit'; doc: ProjectDocument }
+
 function FolderDocuments({
   folder,
   projectId: _projectId,
   onAddDocument,
+  onDocAction,
 }: {
   folder: ProjectFolder
   projectId: string
   onAddDocument: (folderId: string, folderName: string) => void
+  onDocAction: (action: DocAction) => void
 }) {
   const deleteMut = useDeleteDocument()
   const docs = folder.documents ?? []
@@ -133,11 +126,11 @@ function FolderDocuments({
           <TableHeader>
             <TableRow>
               <TableHead>Tên tài liệu</TableHead>
-              <TableHead>Ngày hết hạn</TableHead>
+              <TableHead>Hết hạn</TableHead>
               <TableHead>Còn lại</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Ghi chú</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              <TableHead className="w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,7 +144,11 @@ function FolderDocuments({
                       ? 'bg-red-50/50'
                       : doc.status === 'EXPIRING_SOON'
                         ? 'bg-amber-50/50'
-                        : ''
+                        : doc.status === 'PENDING_APPROVAL'
+                          ? 'bg-amber-50/30'
+                          : doc.status === 'APPROVED'
+                            ? 'bg-green-50/30'
+                            : ''
                   }
                 >
                   <TableCell>
@@ -183,21 +180,46 @@ function FolderDocuments({
                     )}
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={doc.status} />
+                    <DocumentStatusBadge status={doc.status} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {doc.notes ?? '—'}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-gray-400 hover:text-red-500"
-                      onClick={() => handleDelete(doc)}
-                      disabled={deleteMut.isPending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onDocAction({ kind: 'upload', doc })}>
+                          <Upload className="mr-2 h-3.5 w-3.5" /> Upload phiên bản mới
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDocAction({ kind: 'history', doc })}>
+                          <History className="mr-2 h-3.5 w-3.5" /> Lịch sử phiên bản
+                        </DropdownMenuItem>
+                        {doc.current_version_id && (
+                          <DropdownMenuItem
+                            disabled={doc.status === 'PENDING_APPROVAL'}
+                            onClick={() => onDocAction({ kind: 'submit', doc })}
+                          >
+                            <Send className="mr-2 h-3.5 w-3.5" /> Gửi phê duyệt
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem onClick={() => onDocAction({ kind: 'audit', doc })}>
+                          <Activity className="mr-2 h-3.5 w-3.5" /> Nhật ký
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600"
+                          onClick={() => handleDelete(doc)}
+                          disabled={deleteMut.isPending}
+                        >
+                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Xóa
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               )
@@ -290,6 +312,7 @@ export function ProjectDocumentsPage(): React.JSX.Element {
   const generateMut = useGenerateNotifications()
 
   const [addDialog, setAddDialog] = useState<{ folderId: string; folderName: string } | null>(null)
+  const [docAction, setDocAction] = useState<DocAction | null>(null)
 
   const project = useMemo(() => projects?.find((p) => p.id === projectId), [projects, projectId])
 
@@ -408,6 +431,7 @@ export function ProjectDocumentsPage(): React.JSX.Element {
                 folder={folder}
                 projectId={projectId!}
                 onAddDocument={(folderId, folderName) => setAddDialog({ folderId, folderName })}
+                onDocAction={setDocAction}
               />
             ))
           )}
@@ -428,6 +452,43 @@ export function ProjectDocumentsPage(): React.JSX.Element {
           projectId={projectId!}
           folderId={addDialog.folderId}
           folderName={addDialog.folderName}
+        />
+      )}
+
+      {/* Document Control v2.1 dialogs */}
+      {docAction?.kind === 'upload' && (
+        <UploadVersionDialog
+          open
+          onOpenChange={(open) => !open && setDocAction(null)}
+          documentId={docAction.doc.id}
+          documentName={docAction.doc.document_name}
+        />
+      )}
+      {docAction?.kind === 'history' && (
+        <VersionHistoryDialog
+          open
+          onOpenChange={(open) => !open && setDocAction(null)}
+          documentId={docAction.doc.id}
+          documentName={docAction.doc.document_name}
+          currentVersionId={docAction.doc.current_version_id}
+        />
+      )}
+      {docAction?.kind === 'submit' && docAction.doc.current_version_id && (
+        <SubmitApprovalDialog
+          open
+          onOpenChange={(open) => !open && setDocAction(null)}
+          documentId={docAction.doc.id}
+          versionId={docAction.doc.current_version_id}
+          versionNumber="phiên bản hiện tại"
+          documentName={docAction.doc.document_name}
+        />
+      )}
+      {docAction?.kind === 'audit' && (
+        <AuditTimelineDialog
+          open
+          onOpenChange={(open) => !open && setDocAction(null)}
+          documentId={docAction.doc.id}
+          documentName={docAction.doc.document_name}
         />
       )}
     </div>

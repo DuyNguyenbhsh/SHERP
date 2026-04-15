@@ -21,9 +21,28 @@ export const DEFAULT_FOLDERS: {
 ];
 
 export enum DocumentStatus {
+  // Trạng thái expiry (đã có)
   VALID = 'VALID',
   EXPIRING_SOON = 'EXPIRING_SOON',
   EXPIRED = 'EXPIRED',
+  // Trạng thái lifecycle (MỚI — Document Control v2.1)
+  DRAFT = 'DRAFT',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum DocumentAuditAction {
+  CREATED = 'CREATED',
+  UPLOADED_VERSION = 'UPLOADED_VERSION',
+  VIEWED = 'VIEWED',
+  DOWNLOADED = 'DOWNLOADED',
+  SUBMITTED_APPROVAL = 'SUBMITTED_APPROVAL',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  ROLLBACK = 'ROLLBACK',
+  ARCHIVED = 'ARCHIVED',
 }
 
 export enum NotificationType {

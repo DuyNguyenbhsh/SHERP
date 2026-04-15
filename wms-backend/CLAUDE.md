@@ -121,6 +121,8 @@ src/<module>/
 | 2 | `WmsCoreInit` | WMS core (inbound, inventory, outbound, locations) |
 | 3 | `CleanupTmsOutboundPlaceholder` | Drop bảng placeholder `outbound_order` |
 | 4 | `TmsWaybillIntegration` | Bảng `waybills`, FK outbound↔waybill, enum DELIVERED |
+| 32 | `DocumentControlV21Sprint1` | Tạo `document_versions`, extend `project_documents` (current/approved_version_id, doc_type, tags), backfill V1.0 |
+| 33 | `DocumentControlV21Sprint4` | Enable `pg_trgm` + `unaccent`, `search_vector` generated column + GIN, tạo `document_audit_logs` + BRIN |
 
 ### 5.4 Cross-Module Relationships
 
