@@ -14,18 +14,8 @@ import {
   UploadedFile,
   StreamableFile,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    userId: string;
-    username: string;
-    employeeId: string;
-    privileges: string[];
-    contexts: string[];
-  };
-}
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import {
   ApiTags,
   ApiBearerAuth,

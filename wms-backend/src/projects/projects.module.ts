@@ -5,6 +5,9 @@ import { ProjectAssignment } from './entities/project-assignment.entity';
 import { ProjectTransaction } from './entities/project-transaction.entity';
 import { CostCategory } from './entities/cost-category.entity';
 import { ProjectBudget } from './entities/project-budget.entity';
+import { BudgetPeriod } from './entities/budget-period.entity';
+import { BudgetTransactionLog } from './entities/budget-transaction-log.entity';
+import { BudgetRevision } from './entities/budget-revision.entity';
 import { ProjectHistory } from './entities/project-history.entity';
 import { ProjectWbs } from './entities/project-wbs.entity';
 import { ProjectCbs } from './entities/project-cbs.entity';
@@ -44,6 +47,9 @@ import { PROJECT_REPO } from './domain/ports';
       ProjectTransaction,
       CostCategory,
       ProjectBudget,
+      BudgetPeriod,
+      BudgetTransactionLog,
+      BudgetRevision,
       ProjectHistory,
       ProjectWbs,
       ProjectCbs,

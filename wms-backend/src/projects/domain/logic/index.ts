@@ -4,7 +4,7 @@ export {
   buildCbsMap,
   buildActualCostMap,
 } from './evm.logic';
-export { calculateCostSummary } from './budget.logic';
+export { calculateCostSummary, checkHardLimit } from './budget.logic';
 export {
   checkBoqThreshold,
   calculateSettlementLine,

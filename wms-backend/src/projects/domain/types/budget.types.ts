@@ -34,3 +34,27 @@ export interface CostSummaryResult {
   variance_percent: number;
   breakdown: CostBreakdownItem[];
 }
+
+// ── Hard Limit Budget Check Types ──
+
+export interface BudgetSnapshot {
+  budget_id: string;
+  planned_amount: number;
+  consumed_amount: number;
+  committed_amount: number;
+  control_level: 'HARD' | 'SOFT' | 'ADVISORY';
+  warning_threshold_pct: number;
+}
+
+export interface BudgetCheckRequest {
+  amount: number;
+  amount_type: 'COMMITTED' | 'CONSUMED';
+}
+
+export interface BudgetCheckOutput {
+  check_result: 'APPROVED' | 'REJECTED';
+  available_before: number;
+  available_after: number;
+  warning?: string;
+  rejection_reason?: string;
+}

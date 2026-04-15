@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ConflictException,
@@ -26,7 +27,13 @@ import { DocumentsService } from '../documents/documents.service';
 import { ProjectHistoryService } from './project-history.service';
 import { isValidTransition, STATUS_TRANSITIONS } from './enums/status-flow';
 import { ProjectStatus, ProjectStage } from './enums/project.enum';
-import { calculateCostSummary } from './domain/logic';
+import { calculateCostSummary, checkHardLimit } from './domain/logic';
+import { BudgetTransactionLog } from './entities/budget-transaction-log.entity';
+import {
+  BudgetAmountType,
+  BudgetCheckResult,
+  BudgetTransactionType,
+} from './enums/budget.enum';
 import { ExcelService, type ExcelColumnDef } from '../shared/excel';
 import { Employee } from '../users/entities/employee.entity';
 import { Organization } from '../organizations/entities/organization.entity';
@@ -34,6 +41,8 @@ import { Supplier } from '../suppliers/entities/supplier.entity';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @InjectRepository(Project)
     private projectRepo: Repository<Project>,
@@ -59,6 +68,8 @@ export class ProjectsService {
     private orgRepo: Repository<Organization>,
     @InjectRepository(Supplier)
     private supplierRepo: Repository<Supplier>,
+    @InjectRepository(BudgetTransactionLog)
+    private budgetLogRepo: Repository<BudgetTransactionLog>,
   ) {}
 
   async findAll(status?: string, stage?: string) {
@@ -479,6 +490,9 @@ export class ProjectsService {
   }
 
   async createTransaction(projectId: string, dto: CreateTransactionDto) {
+    this.logger.log(
+      `createTransaction bắt đầu: projectId=${projectId}, categoryId=${dto.category_id}, amount=${dto.amount}`,
+    );
     const project = await this.projectRepo.findOne({
       where: { id: projectId },
     });
@@ -504,6 +518,9 @@ export class ProjectsService {
 
     try {
       const saved = await this.transactionRepo.save(transaction);
+      this.logger.log(
+        `createTransaction thành công: transactionId=${saved.id}, projectId=${projectId}, amount=${dto.amount}`,
+      );
       return {
         status: 'success',
         message: 'Tạo giao dịch thành công',
@@ -700,7 +717,7 @@ export class ProjectsService {
     const validStages = Object.values(ProjectStage);
     const validStatuses = Object.values(ProjectStatus);
 
-    /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-member-access */
+    /* eslint-disable @typescript-eslint/no-base-to-string, @typescript-eslint/restrict-template-expressions */
     const result = await this.excelService.parseExcel(fileBuffer, {
       columns: this.PROJECT_COLUMNS,
       requiredKeys: ['project_code', 'project_name'],
@@ -826,11 +843,12 @@ export class ProjectsService {
           await this.documentsService.createDefaultFolders(saved.id);
         }
         savedCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         persistErrors.push({
           row: 0,
           field: 'general',
-          message: `Lỗi lưu "${code}": ${err.message}`,
+          message: `Lỗi lưu "${code}": ${message}`,
         });
       }
     }
@@ -981,18 +999,25 @@ export class ProjectsService {
     };
   }
 
-  // ── Budgetary Control: Hard Limit ──
+  // ── Budgetary Control: Hard Limit (enhanced with control_level + audit log) ──
 
   async checkBudgetLimit(
     projectId: string,
     categoryId: string,
     amount: number,
+    options?: {
+      transaction_type?: BudgetTransactionType;
+      transaction_id?: string;
+      transaction_ref?: string;
+      amount_type?: BudgetAmountType;
+      created_by?: string;
+    },
   ): Promise<void> {
     const budget = await this.budgetRepo.findOne({
       where: { project_id: projectId, category_id: categoryId },
     });
 
-    if (!budget) return; // Khong co budget line → khong co hard limit
+    if (!budget) return; // Không có budget line → không có hard limit
 
     const rawSum: { sum: string } | undefined = await this.transactionRepo
       .createQueryBuilder('tx')
@@ -1002,17 +1027,49 @@ export class ProjectsService {
       .getRawOne();
 
     const currentSpent = parseFloat(rawSum?.sum ?? '0');
-    const planned = Number(budget.planned_amount);
 
-    if (currentSpent + amount > planned) {
+    const result = checkHardLimit(
+      {
+        budget_id: budget.id,
+        planned_amount: Number(budget.planned_amount),
+        consumed_amount: currentSpent,
+        committed_amount: 0,
+        control_level: budget.control_level ?? 'HARD',
+        warning_threshold_pct: budget.warning_threshold_pct ?? 90,
+      },
+      {
+        amount,
+        amount_type: options?.amount_type ?? BudgetAmountType.CONSUMED,
+      },
+    );
+
+    // Ghi audit log
+    const log = this.budgetLogRepo.create({
+      budget_id: budget.id,
+      transaction_type:
+        options?.transaction_type ?? BudgetTransactionType.MANUAL,
+      transaction_id: options?.transaction_id,
+      transaction_ref: options?.transaction_ref,
+      amount,
+      amount_type: options?.amount_type ?? BudgetAmountType.CONSUMED,
+      check_result: result.check_result as BudgetCheckResult,
+      available_before: result.available_before,
+      available_after: result.available_after,
+      rejection_reason: result.rejection_reason,
+      created_by: options?.created_by,
+    });
+    await this.budgetLogRepo.save(log);
+
+    if (result.check_result === 'REJECTED') {
       throw new BadRequestException({
         status: 'error',
-        message: `Vượt ngân sách! Hạng mục này đã chi ${currentSpent.toLocaleString('vi-VN')} / ${planned.toLocaleString('vi-VN')} VNĐ. Giao dịch ${amount.toLocaleString('vi-VN')} VNĐ sẽ vượt ${(currentSpent + amount - planned).toLocaleString('vi-VN')} VNĐ.`,
+        message: result.rejection_reason,
         data: {
-          planned,
+          planned: Number(budget.planned_amount),
           spent: currentSpent,
           requested: amount,
-          over: currentSpent + amount - planned,
+          over: Math.abs(result.available_after),
+          control_level: budget.control_level,
         },
       });
     }

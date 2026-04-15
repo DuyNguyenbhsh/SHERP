@@ -3,7 +3,14 @@
  * Tính toán chênh lệch ngân sách vs chi phí thực tế.
  */
 
-import type { BudgetRow, ActualCostRow, CostSummaryResult } from '../types';
+import type {
+  BudgetRow,
+  ActualCostRow,
+  CostSummaryResult,
+  BudgetSnapshot,
+  BudgetCheckRequest,
+  BudgetCheckOutput,
+} from '../types';
 
 export function calculateCostSummary(
   budgetRows: BudgetRow[],
@@ -67,4 +74,61 @@ export function calculateCostSummary(
     variance_percent: variance,
     breakdown,
   };
+}
+
+/**
+ * checkHardLimit — Pure function kiểm tra ngân sách theo control_level.
+ *
+ * - ADVISORY: luôn APPROVED (chỉ log cảnh báo nếu gần/vượt threshold)
+ * - SOFT: luôn APPROVED + warning nếu vượt
+ * - HARD: REJECTED nếu vượt planned_amount
+ */
+export function checkHardLimit(
+  snapshot: BudgetSnapshot,
+  request: BudgetCheckRequest,
+): BudgetCheckOutput {
+  const totalUsed = snapshot.consumed_amount + snapshot.committed_amount;
+  const available = snapshot.planned_amount - totalUsed;
+  const availableAfter = available - request.amount;
+  const thresholdAmount =
+    (snapshot.planned_amount * snapshot.warning_threshold_pct) / 100;
+
+  const base: Pick<BudgetCheckOutput, 'available_before' | 'available_after'> =
+    {
+      available_before: available,
+      available_after: availableAfter,
+    };
+
+  // Cảnh báo khi đạt threshold (áp dụng cho mọi control_level)
+  const nearThreshold =
+    snapshot.planned_amount > 0 &&
+    totalUsed + request.amount >= thresholdAmount;
+  const warning = nearThreshold
+    ? `Đã sử dụng ${Math.round(((totalUsed + request.amount) / snapshot.planned_amount) * 100)}% ngân sách (ngưỡng cảnh báo: ${snapshot.warning_threshold_pct}%)`
+    : undefined;
+
+  // ADVISORY: luôn duyệt
+  if (snapshot.control_level === 'ADVISORY') {
+    return { ...base, check_result: 'APPROVED', warning };
+  }
+
+  // SOFT: luôn duyệt nhưng cảnh báo nếu vượt
+  if (snapshot.control_level === 'SOFT') {
+    const softWarning =
+      availableAfter < 0
+        ? `Vượt ngân sách ${Math.abs(availableAfter).toLocaleString('vi-VN')} VNĐ (SOFT — cho phép nhưng cần review)`
+        : warning;
+    return { ...base, check_result: 'APPROVED', warning: softWarning };
+  }
+
+  // HARD: từ chối nếu vượt
+  if (availableAfter < 0) {
+    return {
+      ...base,
+      check_result: 'REJECTED',
+      rejection_reason: `Vượt ngân sách! Khả dụng: ${available.toLocaleString('vi-VN')} VNĐ, yêu cầu: ${request.amount.toLocaleString('vi-VN')} VNĐ. Vượt: ${Math.abs(availableAfter).toLocaleString('vi-VN')} VNĐ.`,
+    };
+  }
+
+  return { ...base, check_result: 'APPROVED', warning };
 }
