@@ -15,6 +15,8 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from './types/authenticated-request';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginDto } from './dto/login.dto';
@@ -41,8 +43,8 @@ export class AuthController {
   @Post('login')
   async login(
     @Body() dto: LoginDto,
-    @Req() req: any,
-    @Res({ passthrough: true }) res: any,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -78,7 +80,7 @@ export class AuthController {
   })
   @HttpCode(200)
   @Post('refresh')
-  async refresh(@Req() req: any, @Res({ passthrough: true }) res: any) {
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: any) {
     const refreshToken = req.cookies?.[REFRESH_COOKIE];
     if (!refreshToken) {
       return res.status(401).json({
@@ -116,7 +118,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   @Post('logout')
-  async logout(@Req() req: any, @Res({ passthrough: true }) res: any) {
+  async logout(
+    @Req() req: AuthenticatedRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.[REFRESH_COOKIE];
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
@@ -137,7 +142,7 @@ export class AuthController {
   @Throttle({ auth: { ttl: 60000, limit: 3 } })
   @HttpCode(200)
   @Post('forgot-password')
-  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: any) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Req() req: Request) {
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.forgotPassword(dto.username, ip, userAgent);
@@ -149,7 +154,7 @@ export class AuthController {
   @Throttle({ auth: { ttl: 60000, limit: 5 } })
   @HttpCode(200)
   @Post('reset-password')
-  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: any) {
+  async resetPassword(@Body() dto: ResetPasswordDto, @Req() req: Request) {
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
     return this.authService.resetPassword(
@@ -164,7 +169,7 @@ export class AuthController {
   @ApiBearerAuth('bearer')
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getProfile(@Req() req: any) {
+  async getProfile(@Req() req: AuthenticatedRequest) {
     return this.authService.getProfile(req.user.userId);
   }
 }

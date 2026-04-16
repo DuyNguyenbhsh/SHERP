@@ -7,6 +7,7 @@ import { ProjectNcrService } from './project-ncr.service';
 import { NonConformanceReport } from './entities/non-conformance-report.entity';
 import { NcrAttachment } from './entities/ncr-attachment.entity';
 import { NcrStatus, NcrCategory, NcrSeverity } from './enums/ncr.enum';
+import { CloudStorageService } from '../shared/cloud-storage';
 import {
   CreateNcrDto,
   AssignNcrDto,
@@ -77,6 +78,13 @@ describe('ProjectNcrService', () => {
       create: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
+      findOne: jest.fn(),
+    };
+
+    const mockCloudStorage = {
+      upload: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -90,6 +98,7 @@ describe('ProjectNcrService', () => {
           provide: getRepositoryToken(NcrAttachment),
           useValue: mockAttachmentRepo,
         },
+        { provide: CloudStorageService, useValue: mockCloudStorage },
       ],
     }).compile();
 
@@ -770,45 +779,75 @@ describe('ProjectNcrService', () => {
   // Bonus: addAttachment() and removeAttachment()
   // ════════════════════════════════════════════════════════
   describe('addAttachment()', () => {
-    it('should create and save an attachment', async () => {
-      const att = {
-        id: 'att-1',
-        ncr_id: 'ncr-uuid-1',
-        phase: 'BEFORE',
-        file_url: '/files/img.jpg',
-        file_name: 'img.jpg',
-        uploaded_by: 'user-1',
-      };
+    const cloudUpload = {
+      url: 'http://res.cloudinary.com/img.jpg',
+      secure_url: 'https://res.cloudinary.com/img.jpg',
+      public_id: 'sh-erp/ncr/ncr-uuid-1/BEFORE/img_123',
+      file_name: 'img.jpg',
+      file_size: 102400,
+      format: 'jpg',
+      resource_type: 'image',
+    };
+
+    it('lưu attachment với full Cloudinary metadata', async () => {
+      attachmentRepo.count.mockResolvedValue(0);
+      const att = { id: 'att-1', ...cloudUpload };
       attachmentRepo.create.mockReturnValue(att as any);
       attachmentRepo.save.mockResolvedValue(att as any);
 
       const result = await service.addAttachment(
         'ncr-uuid-1',
         'BEFORE',
-        '/files/img.jpg',
-        'img.jpg',
+        cloudUpload,
         'user-1',
       );
 
-      expect(attachmentRepo.create).toHaveBeenCalledWith({
-        ncr_id: 'ncr-uuid-1',
-        phase: 'BEFORE',
-        file_url: '/files/img.jpg',
-        file_name: 'img.jpg',
-        uploaded_by: 'user-1',
-      });
+      expect(attachmentRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ncr_id: 'ncr-uuid-1',
+          phase: 'BEFORE',
+          file_url: cloudUpload.secure_url,
+          public_id: cloudUpload.public_id,
+          file_size: 102400,
+          file_format: 'jpg',
+          is_missing: false,
+          uploaded_by: 'user-1',
+        }),
+      );
       expect(result).toEqual(att);
+    });
+
+    it('chặn khi đã đạt giới hạn 5 attachments/NCR', async () => {
+      attachmentRepo.count.mockResolvedValue(5);
+      await expect(
+        service.addAttachment('ncr-uuid-1', 'BEFORE', cloudUpload, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('removeAttachment()', () => {
-    it('should delete attachment when it exists', async () => {
+    it('gọi CloudStorage.delete khi có public_id + xoá DB row', async () => {
+      attachmentRepo.findOne.mockResolvedValue({
+        id: 'att-1',
+        public_id: 'sh-erp/ncr/x',
+        is_missing: false,
+      } as any);
       attachmentRepo.delete.mockResolvedValue({ affected: 1, raw: {} });
       await expect(service.removeAttachment('att-1')).resolves.toBeUndefined();
     });
 
-    it('should throw NotFoundException when attachment does not exist', async () => {
-      attachmentRepo.delete.mockResolvedValue({ affected: 0, raw: {} });
+    it('bỏ qua Cloudinary delete khi is_missing=true (orphan cũ)', async () => {
+      attachmentRepo.findOne.mockResolvedValue({
+        id: 'att-1',
+        public_id: null,
+        is_missing: true,
+      } as any);
+      attachmentRepo.delete.mockResolvedValue({ affected: 1, raw: {} });
+      await expect(service.removeAttachment('att-1')).resolves.toBeUndefined();
+    });
+
+    it('throws NotFound khi attachment không tồn tại', async () => {
+      attachmentRepo.findOne.mockResolvedValue(null);
       await expect(service.removeAttachment('bad-att')).rejects.toThrow(
         NotFoundException,
       );

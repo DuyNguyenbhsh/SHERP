@@ -1,10 +1,11 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, FindOptionsWhere } from 'typeorm';
 import { OutboundOrder } from './entities/outbound-order.entity';
 import { OutboundLine } from './entities/outbound-line.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
@@ -14,9 +15,16 @@ import { StockStatus } from '../inventory/enums/inventory.enum';
 import { CreateOutboundOrderDto } from './dto/create-outbound-order.dto';
 import { UpdateOutboundStatusDto, PickItemDto } from './dto/pick-item.dto';
 import { ProjectBoqService } from '../projects/project-boq.service';
+import { ProjectsService } from '../projects/projects.service';
+import {
+  BudgetTransactionType,
+  BudgetAmountType,
+} from '../projects/enums/budget.enum';
 
 @Injectable()
 export class OutboundService {
+  private readonly logger = new Logger(OutboundService.name);
+
   constructor(
     @InjectRepository(OutboundOrder)
     private orderRepo: Repository<OutboundOrder>,
@@ -27,6 +35,8 @@ export class OutboundService {
     private dataSource: DataSource,
 
     private boqService: ProjectBoqService,
+
+    private projectsService: ProjectsService,
   ) {}
 
   // === 1. TẠO PHIẾU XUẤT KHO ===
@@ -62,6 +72,20 @@ export class OutboundService {
       }
     }
 
+    // ── Budget Control: kiểm tra ngân sách khi xuất cho dự án ──
+    if (dto.project_id && dto.category_id && dto.estimated_amount) {
+      await this.projectsService.checkBudgetLimit(
+        dto.project_id,
+        dto.category_id,
+        dto.estimated_amount,
+        {
+          transaction_type: BudgetTransactionType.WMS_OUTBOUND,
+          transaction_ref: order_number,
+          amount_type: BudgetAmountType.CONSUMED,
+        },
+      );
+    }
+
     const order = this.orderRepo.create({
       order_number,
       order_type: dto.order_type,
@@ -78,6 +102,8 @@ export class OutboundService {
       notes: dto.notes,
       project_id: dto.project_id,
       wbs_id: dto.wbs_id,
+      category_id: dto.category_id,
+      estimated_amount: dto.estimated_amount,
       lines: dto.lines.map((line) => ({
         product_id: line.product_id,
         requested_qty: line.requested_qty,
@@ -96,8 +122,13 @@ export class OutboundService {
 
   // === 2. DANH SÁCH PHIẾU XUẤT KHO ===
   async findAll(status?: string) {
-    const where: any = {};
-    if (status) where.status = status;
+    const where: FindOptionsWhere<OutboundOrder> = {};
+    if (
+      status &&
+      Object.values(OutboundStatus).includes(status as OutboundStatus)
+    ) {
+      where.status = status as OutboundStatus;
+    }
 
     const orders = await this.orderRepo.find({
       where,
@@ -172,6 +203,9 @@ export class OutboundService {
   //   → kiểm tra tất cả lines đã pick xong → tự chuyển Order sang PICKED
   //
   async pickItem(lineId: string, dto: PickItemDto) {
+    this.logger.log(
+      `pickItem bắt đầu: lineId=${lineId}, locationId=${dto.location_id}, qty=${dto.pick_qty}`,
+    );
     return this.dataSource.transaction(async (manager) => {
       // --- Bước 1: Validate OutboundLine tồn tại và chưa pick đủ ---
       const line = await manager.findOne(OutboundLine, {
@@ -280,6 +314,9 @@ export class OutboundService {
         await manager.save(OutboundOrder, order);
       }
 
+      this.logger.log(
+        `pickItem thành công: lineId=${lineId}, pickedQty=${line.picked_qty}/${line.requested_qty}`,
+      );
       return {
         status: 'success',
         message: `Pick ${dto.pick_qty} sản phẩm từ vị trí thành công.${allPicked ? ' Phiếu xuất đã PICKED hoàn tất.' : ''}`,

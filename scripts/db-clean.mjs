@@ -6,7 +6,19 @@
  */
 import { execSync } from 'child_process';
 import { readFileSync } from 'fs';
+import { createInterface } from 'readline';
 import chalk from 'chalk';
+
+/** Hoi xac nhan tu user truoc khi thuc hien */
+function confirm(question) {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === 'yes');
+    });
+  });
+}
 
 console.log(chalk.red.bold('\n🧹 SH ERP — XOA DU LIEU RAC (Test data cleanup)'));
 console.log(chalk.gray('══════════════════════════════════════════════════\n'));
@@ -20,6 +32,28 @@ if (!dbMatch) {
 }
 
 const dbUrl = dbMatch[1].trim();
+
+// ── Buoc 1: Xac nhan truoc khi xoa ──
+const ok = await confirm(
+  chalk.yellow.bold('⚠  Ban chac chan muon xoa du lieu rac? Nhap "yes" de tiep tuc: '),
+);
+if (!ok) {
+  console.log(chalk.gray('\n❌ Da huy. Khong xoa gi ca.\n'));
+  process.exit(0);
+}
+
+// ── Buoc 2: Auto-backup truoc khi xoa ──
+console.log(chalk.cyan('\n📦 Tao backup truoc khi xoa...'));
+try {
+  execSync(`DATABASE_URL="${dbUrl}" bash scripts/db-backup.sh`, {
+    encoding: 'utf8',
+    stdio: 'inherit',
+  });
+  console.log(chalk.green('✅ Backup thanh cong. Tiep tuc xoa du lieu rac...\n'));
+} catch {
+  console.log(chalk.red('❌ Backup that bai! Huy xoa de bao toan du lieu.'));
+  process.exit(1);
+}
 
 const queries = [
   // 1. Xoa approval test requests

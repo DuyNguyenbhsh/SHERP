@@ -17,12 +17,13 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { ProjectPlansService } from './project-plans.service';
 import { CreatePlanDto, PlanActionDto } from './dto/create-plan.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
 import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
-import { PlanStatus } from './enums/plan-status.enum';
 
 @ApiTags('Project Plans - Kế hoạch Thi công (PROJ1)')
 @ApiBearerAuth('bearer')
@@ -35,7 +36,7 @@ export class ProjectPlansController {
 
   @ApiOperation({ summary: 'Thông báo kế hoạch cho user hiện tại' })
   @Get('notifications')
-  findNotifications(@Req() req: any) {
+  findNotifications(@Req() req: AuthenticatedRequest) {
     return this.service.findNotifications(req.user.userId);
   }
 
@@ -55,7 +56,7 @@ export class ProjectPlansController {
   @ApiOperation({ summary: 'Tạo kế hoạch thi công mới' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post()
-  create(@Body() dto: CreatePlanDto, @Req() req: any) {
+  create(@Body() dto: CreatePlanDto, @Req() req: AuthenticatedRequest) {
     return this.service.create(dto, req.user.userId, req.user.username);
   }
 
@@ -78,7 +79,7 @@ export class ProjectPlansController {
   @Get(':id/excel/export')
   async exportExcel(
     @Param('id') id: string,
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const buffer = await this.service.exportPlanToExcel(id);
     res.set({
@@ -95,7 +96,11 @@ export class ProjectPlansController {
     summary: 'Trình duyệt kế hoạch (DRAFT → SUBMITTED) — Khóa dữ liệu',
   })
   @Patch(':id/submit')
-  submit(@Param('id') id: string, @Body() dto: PlanActionDto, @Req() req: any) {
+  submit(
+    @Param('id') id: string,
+    @Body() dto: PlanActionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.service.submitPlan(
       id,
       req.user.userId,
@@ -109,7 +114,11 @@ export class ProjectPlansController {
   })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch(':id/review')
-  review(@Param('id') id: string, @Body() dto: PlanActionDto, @Req() req: any) {
+  review(
+    @Param('id') id: string,
+    @Body() dto: PlanActionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.service.reviewPlan(
       id,
       req.user.userId,
@@ -127,7 +136,7 @@ export class ProjectPlansController {
   approve(
     @Param('id') id: string,
     @Body() dto: PlanActionDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.approvePlan(
       id,
@@ -142,7 +151,11 @@ export class ProjectPlansController {
   })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch(':id/reject')
-  reject(@Param('id') id: string, @Body() dto: PlanActionDto, @Req() req: any) {
+  reject(
+    @Param('id') id: string,
+    @Body() dto: PlanActionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.service.rejectPlan(
       id,
       req.user.userId,

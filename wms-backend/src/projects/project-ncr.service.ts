@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -15,14 +16,23 @@ import {
   UpdateNcrDto,
 } from './dto/create-ncr.dto';
 import { NcrStatus, NCR_STATUS_TRANSITIONS } from './enums/ncr.enum';
+import {
+  CloudStorageService,
+  CloudUploadResult,
+} from '../shared/cloud-storage/cloud-storage.service';
+
+export const NCR_MAX_ATTACHMENTS = 5;
 
 @Injectable()
 export class ProjectNcrService {
+  private readonly logger = new Logger(ProjectNcrService.name);
+
   constructor(
     @InjectRepository(NonConformanceReport)
     private readonly ncrRepo: Repository<NonConformanceReport>,
     @InjectRepository(NcrAttachment)
     private readonly attachmentRepo: Repository<NcrAttachment>,
+    private readonly cloudStorage: CloudStorageService,
   ) {}
 
   async create(
@@ -139,21 +149,59 @@ export class ProjectNcrService {
   async addAttachment(
     ncrId: string,
     phase: 'BEFORE' | 'AFTER',
-    fileUrl: string,
-    fileName: string,
+    upload: CloudUploadResult,
     userId: string,
   ): Promise<NcrAttachment> {
+    // Kiểm tra giới hạn 5 attachment/NCR
+    const currentCount = await this.attachmentRepo.count({
+      where: { ncr_id: ncrId, is_missing: false },
+    });
+    if (currentCount >= NCR_MAX_ATTACHMENTS) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `NCR đã đạt giới hạn ${NCR_MAX_ATTACHMENTS} tệp đính kèm. Vui lòng xoá bớt trước khi upload.`,
+        data: null,
+      });
+    }
+
     const att = this.attachmentRepo.create({
       ncr_id: ncrId,
       phase,
-      file_url: fileUrl,
-      file_name: fileName,
+      file_url: upload.secure_url,
+      file_name: upload.file_name,
+      public_id: upload.public_id,
+      file_size: upload.file_size,
+      file_format: upload.format,
+      resource_type: upload.resource_type,
+      is_missing: false,
       uploaded_by: userId,
     });
     return this.attachmentRepo.save(att);
   }
 
   async removeAttachment(attachmentId: string): Promise<void> {
+    const att = await this.attachmentRepo.findOne({
+      where: { id: attachmentId },
+    });
+    if (!att) {
+      throw new NotFoundException('Attachment khong ton tai');
+    }
+
+    // Xoá file trên Cloudinary (best-effort — KHÔNG chặn DB delete nếu Cloudinary fail)
+    if (att.public_id) {
+      try {
+        await this.cloudStorage.delete(att.public_id);
+      } catch (err) {
+        this.logger.warn(
+          `Cloudinary delete fail cho ${att.public_id}: ${String(err)}. Tiếp tục xoá DB row.`,
+        );
+      }
+    } else if (!att.is_missing) {
+      this.logger.warn(
+        `[NCR] Orphan attachment ${attachmentId} không có public_id, file_url=${att.file_url}`,
+      );
+    }
+
     const result = await this.attachmentRepo.delete(attachmentId);
     if (result.affected === 0) {
       throw new NotFoundException('Attachment khong ton tai');

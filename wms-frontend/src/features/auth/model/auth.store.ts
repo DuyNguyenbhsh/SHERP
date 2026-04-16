@@ -7,6 +7,7 @@ interface User {
   id: string
   username: string
   role: string
+  privileges: string[]
 }
 
 interface AuthState {
@@ -22,6 +23,7 @@ interface AuthState {
   setAuth: (user: User, token: string) => void
   logout: () => void
   validateToken: () => Promise<void>
+  hasPrivilege: (code: string) => boolean
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -62,7 +64,12 @@ export const useAuthStore = create<AuthState>()(
         try {
           const profile = await fetchCurrentUser()
           set({
-            user: { id: profile.id, username: profile.username, role: profile.role },
+            user: {
+              id: profile.id,
+              username: profile.username,
+              role: profile.role,
+              privileges: profile.privileges ?? [],
+            },
             position: profile.position ?? null,
             orgUnit: profile.org_unit ?? null,
             projectScope: profile.project_scope ?? null,
@@ -79,6 +86,11 @@ export const useAuthStore = create<AuthState>()(
             projectScope: null,
           })
         }
+      },
+
+      hasPrivilege: (code) => {
+        const { user } = get()
+        return user?.privileges?.includes(code) ?? false
       },
     }),
     {

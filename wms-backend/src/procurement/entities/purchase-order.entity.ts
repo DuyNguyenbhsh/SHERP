@@ -27,6 +27,13 @@ export class PurchaseOrder {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   total_amount: number;
 
+  // Liên kết dự án (Budget control)
+  @Column({ nullable: true })
+  project_id: string;
+
+  @Column({ nullable: true })
+  category_id: string;
+
   @OneToMany(() => PurchaseOrderLine, (line) => line.po, { cascade: true })
   lines: PurchaseOrderLine[];
 

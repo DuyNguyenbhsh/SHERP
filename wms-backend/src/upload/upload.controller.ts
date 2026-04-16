@@ -14,11 +14,12 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PrivilegeGuard } from '../common/guards/privilege.guard';
 import { CloudStorageService } from '../shared/cloud-storage';
 
 @ApiTags('Upload - Tải lên tệp')
 @ApiBearerAuth('bearer')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PrivilegeGuard)
 @Controller('upload')
 export class UploadController {
   constructor(private readonly cloudStorage: CloudStorageService) {}

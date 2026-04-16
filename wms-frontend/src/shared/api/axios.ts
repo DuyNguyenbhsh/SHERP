@@ -9,9 +9,6 @@ import { useAuthStore } from '@/features/auth/model/auth.store'
  */
 const baseURL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? '/api'
 
-console.log('[Axios] baseURL =', baseURL)
-console.log('[Axios] VITE_API_URL =', import.meta.env.VITE_API_URL)
-
 const api = axios.create({
   baseURL,
   timeout: 15000, // 15s timeout — tránh treo vô hạn khi server không phản hồi

@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsNotEmpty,
   IsOptional,
   IsEnum,
   IsUUID,
@@ -135,6 +134,20 @@ export class CreateOutboundOrderDto {
   @IsString()
   @IsOptional()
   wbs_id?: string;
+
+  @ApiPropertyOptional({ description: 'UUID loại chi phí (budget check)' })
+  @IsUUID('4', { message: 'category_id phải là UUID hợp lệ' })
+  @IsOptional()
+  category_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Giá trị ước tính phiếu xuất (VNĐ) — dùng cho budget check',
+    example: 50000000,
+  })
+  @IsNumber({}, { message: 'estimated_amount phải là số' })
+  @Min(0)
+  @IsOptional()
+  estimated_amount?: number;
 
   @ApiProperty({
     description: 'Danh sách dòng hàng xuất',

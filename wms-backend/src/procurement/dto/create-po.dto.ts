@@ -1,6 +1,7 @@
 import {
   IsUUID,
   IsArray,
+  IsOptional,
   ValidateNested,
   IsNumber,
   IsInt,
@@ -8,7 +9,7 @@ import {
   ArrayNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreatePoLineDto {
   @ApiProperty({
@@ -33,6 +34,16 @@ export class CreatePoDto {
   @ApiProperty({ description: 'UUID nhà cung cấp' })
   @IsUUID('4', { message: 'vendor_id phải là UUID hợp lệ' })
   vendor_id: string;
+
+  @ApiPropertyOptional({ description: 'UUID dự án (budget control)' })
+  @IsUUID('4', { message: 'project_id phải là UUID hợp lệ' })
+  @IsOptional()
+  project_id?: string;
+
+  @ApiPropertyOptional({ description: 'UUID loại chi phí (budget control)' })
+  @IsUUID('4', { message: 'category_id phải là UUID hợp lệ' })
+  @IsOptional()
+  category_id?: string;
 
   @ApiProperty({ description: 'Danh sách dòng hàng', type: [CreatePoLineDto] })
   @IsArray({ message: 'Danh sách dòng hàng phải là mảng' })

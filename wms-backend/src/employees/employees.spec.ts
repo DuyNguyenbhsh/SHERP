@@ -7,6 +7,7 @@ import { EmployeesService } from './employees.service';
 import { Employee } from '../users/entities/employee.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { ExcelService } from '../shared/excel';
+import { AuditLogService } from '../common/audit/audit-log.service';
 
 // ── Mocks ──
 const mockEmployeeRepo = {
@@ -19,6 +20,7 @@ const mockEmployeeRepo = {
 const mockOrgRepo = { findOne: jest.fn() };
 const mockExcelService = {};
 const mockDataSource = { query: jest.fn() };
+const mockAuditLogService = { log: jest.fn() };
 
 const EMP_ADMIN = {
   id: 'emp-001',
@@ -45,6 +47,7 @@ describe('EmployeesService — Delete & Status', () => {
         { provide: getRepositoryToken(Organization), useValue: mockOrgRepo },
         { provide: ExcelService, useValue: mockExcelService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: AuditLogService, useValue: mockAuditLogService },
       ],
     }).compile();
 

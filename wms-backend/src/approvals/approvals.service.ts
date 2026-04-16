@@ -922,8 +922,9 @@ export class ApprovalsService {
           await this.configRepo.save(config);
         }
         savedCount++;
-      } catch (err: any) {
-        persistErrors.push({ row: 0, field: 'general', message: err.message });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        persistErrors.push({ row: 0, field: 'general', message });
       }
     }
 

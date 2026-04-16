@@ -26,6 +26,7 @@ interface UserProfile {
   id: string
   username: string
   role: string
+  privileges: string[]
   position?: PositionInfo
   org_unit?: OrgUnitInfo
   project_scope?: ProjectScope
@@ -37,6 +38,7 @@ interface LoginResponse {
     id: string
     username: string
     role: string
+    privileges: string[]
   }
 }
 

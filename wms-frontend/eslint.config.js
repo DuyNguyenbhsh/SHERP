@@ -71,6 +71,9 @@ export default defineConfig([
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      // React 19 pattern: form-reset-on-prop-change dùng useEffect + setState là chuẩn.
+      // Rule này quá strict, downgrade thành warn.
+      'react-hooks/set-state-in-effect': 'warn',
     },
   },
   // Shadcn UI generated files — allow non-component exports (variants, helpers)

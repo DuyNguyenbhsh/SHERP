@@ -33,6 +33,21 @@ export class NcrAttachment {
   @Column({ length: 255, nullable: true })
   file_name: string;
 
+  @Column({ length: 255, nullable: true })
+  public_id: string;
+
+  @Column({ type: 'int', nullable: true })
+  file_size: number;
+
+  @Column({ length: 20, nullable: true })
+  file_format: string;
+
+  @Column({ length: 20, nullable: true, default: 'image' })
+  resource_type: string;
+
+  @Column({ type: 'boolean', default: false })
+  is_missing: boolean;
+
   @Column({ nullable: true })
   uploaded_by: string;
 

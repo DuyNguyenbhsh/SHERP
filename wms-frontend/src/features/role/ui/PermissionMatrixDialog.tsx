@@ -94,6 +94,16 @@ const MATRIX: MatrixGroup[] = [
     ],
   },
   {
+    key: 'DOCUMENT',
+    label: 'Tài liệu',
+    items: [
+      {
+        label: 'Nhật ký kiểm toán tài liệu',
+        actions: { view: 'VIEW_AUDIT' },
+      },
+    ],
+  },
+  {
     key: 'PROCUREMENT',
     label: 'Mua hàng',
     items: [

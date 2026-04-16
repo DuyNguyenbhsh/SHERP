@@ -279,11 +279,12 @@ export class UsersService {
             message: `Tai khoan "${username}" khong ton tai. Import chi ho tro cap nhat role.`,
           });
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         persistErrors.push({
           row: 0,
           field: 'general',
-          message: `Loi xu ly "${username}": ${err.message}`,
+          message: `Loi xu ly "${username}": ${message}`,
         });
       }
     }

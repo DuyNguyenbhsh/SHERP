@@ -159,6 +159,13 @@ export class SeedService implements OnApplicationBootstrap {
           name: 'Quản lý Quy trình phê duyệt',
           module: 'ADMIN',
         },
+
+        // Document Control v2.1
+        {
+          code: 'VIEW_AUDIT',
+          name: 'Xem nhật ký kiểm toán tài liệu',
+          module: 'DOCUMENT',
+        },
       ];
 
       const savedPrivileges: Privilege[] = [];
@@ -283,16 +290,18 @@ export class SeedService implements OnApplicationBootstrap {
       this.logger.log(
         '🔥 Hoàn tất! Hệ thống đã được khởi tạo đầy đủ dữ liệu mẫu & phân quyền.',
       );
-    } catch (error: any) {
-      if (error.code === '23505') {
+    } catch (error: unknown) {
+      const isDuplicate =
+        error instanceof Object &&
+        'code' in error &&
+        (error as Record<string, unknown>).code === '23505';
+      if (isDuplicate) {
         this.logger.warn(
           '🌱 Phát hiện dữ liệu mẫu đã tồn tại (Duplicate Key). Tự động bỏ qua.',
         );
       } else {
-        this.logger.error(
-          '❌ Lỗi không xác định khi chạy Seed:',
-          error.message,
-        );
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error('❌ Lỗi không xác định khi chạy Seed:', message);
       }
     }
   }
@@ -461,34 +470,10 @@ export class SeedService implements OnApplicationBootstrap {
       C,
       impc,
     );
-    const impcFin = await mk(
-      'IMPC-FIN',
-      'Phòng Tài chính',
-      'Phòng Tài chính IMPC',
-      C,
-      impc,
-    );
-    const impcHr = await mk(
-      'IMPC-HR',
-      'Phòng Nhân sự',
-      'Phòng Nhân sự IMPC',
-      C,
-      impc,
-    );
-    const impcProc = await mk(
-      'IMPC-PROC',
-      'Phòng Mua hàng',
-      'Phòng Mua hàng IMPC',
-      C,
-      impc,
-    );
-    const impcCc = await mk(
-      'IMPC-CC',
-      'Bộ phận C&C',
-      'Bộ phận Cost & Contract IMPC',
-      C,
-      impc,
-    );
+    await mk('IMPC-FIN', 'Phòng Tài chính', 'Phòng Tài chính IMPC', C, impc);
+    await mk('IMPC-HR', 'Phòng Nhân sự', 'Phòng Nhân sự IMPC', C, impc);
+    await mk('IMPC-PROC', 'Phòng Mua hàng', 'Phòng Mua hàng IMPC', C, impc);
+    await mk('IMPC-CC', 'Bộ phận C&C', 'Bộ phận Cost & Contract IMPC', C, impc);
     const impcProd = await mk(
       'IMPC-PROD',
       'Phát triển Sản phẩm',
@@ -498,21 +483,21 @@ export class SeedService implements OnApplicationBootstrap {
     );
 
     // ── IMPC — Project Sites ──
-    const siteVcq7 = await mk(
+    await mk(
       'SITE-VCQ7',
       'CT Vincom Quận 7',
       'Công trình Vincom Quận 7',
       S,
       impc,
     );
-    const siteTdc = await mk(
+    await mk(
       'SITE-TDC',
       'CT Thủ Đức Central',
       'Công trình Thủ Đức Central Park',
       S,
       impc,
     );
-    const siteSga = await mk(
+    await mk(
       'SITE-SGA',
       'CT SaiGon Airport',
       'Công trình SaiGon Airport Plaza',

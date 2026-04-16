@@ -1,10 +1,11 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, FindOptionsWhere } from 'typeorm';
 import { InboundReceipt } from './entities/inbound-receipt.entity';
 import { InboundLine } from './entities/inbound-line.entity';
 import { Location } from '../inventory/entities/location.entity';
@@ -19,6 +20,8 @@ import { PutawayDto } from './dto/update-inbound-status.dto';
 
 @Injectable()
 export class InboundService {
+  private readonly logger = new Logger(InboundService.name);
+
   constructor(
     @InjectRepository(InboundReceipt)
     private receiptRepo: Repository<InboundReceipt>,
@@ -71,9 +74,12 @@ export class InboundService {
 
   // === 2. DANH SÁCH PHIẾU NHẬP KHO ===
   async findAll(status?: string) {
-    const where: any = {};
-    if (status) {
-      where.status = status;
+    const where: FindOptionsWhere<InboundReceipt> = {};
+    if (
+      status &&
+      Object.values(InboundStatus).includes(status as InboundStatus)
+    ) {
+      where.status = status as InboundStatus;
     }
 
     const receipts = await this.receiptRepo.find({
@@ -179,6 +185,9 @@ export class InboundService {
   //   → kiểm tra tất cả lines đã putaway chưa → nếu hết thì tự chuyển Receipt sang COMPLETED
   //
   async putaway(lineId: string, dto: PutawayDto) {
+    this.logger.log(
+      `Putaway bắt đầu: lineId=${lineId}, locationId=${dto.location_id}`,
+    );
     return this.dataSource.transaction(async (manager) => {
       // --- Bước 1: Validate InboundLine tồn tại và đủ điều kiện Putaway ---
       const line = await manager.findOne(InboundLine, {
@@ -317,6 +326,9 @@ export class InboundService {
         await manager.save(InboundReceipt, receipt);
       }
 
+      this.logger.log(
+        `Putaway thành công: qty=${putawayQty}, location=${location.code}`,
+      );
       return {
         status: 'success',
         message: `Putaway ${putawayQty} ${line.product_id} vào ${location.code} thành công.${allPutaway ? ' Phiếu nhập đã COMPLETED.' : ''}`,

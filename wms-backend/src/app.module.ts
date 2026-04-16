@@ -29,6 +29,8 @@ import { ProjectRequestsModule } from './project-requests/project-requests.modul
 import { ProjectPlansModule } from './project-plans/project-plans.module';
 import { ProjectMonitoringModule } from './project-monitoring/project-monitoring.module';
 import { ProjectScheduleModule } from './project-schedule/project-schedule.module';
+import { CustomersModule } from './customers/customers.module';
+import { SalesModule } from './sales/sales.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { SharedModule } from './shared/shared.module';
@@ -101,6 +103,8 @@ import { UploadModule } from './upload/upload.module';
     ProjectPlansModule,
     ProjectMonitoringModule,
     ProjectScheduleModule,
+    CustomersModule,
+    SalesModule,
     SharedModule,
     AuditModule,
     SystemSettingsModule,

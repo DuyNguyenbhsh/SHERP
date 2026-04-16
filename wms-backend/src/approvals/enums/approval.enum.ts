@@ -4,6 +4,7 @@ export enum ApprovalEntityType {
   OUTBOUND_ORDER = 'OUTBOUND_ORDER',
   PURCHASE_ORDER = 'PURCHASE_ORDER',
   GENERAL = 'GENERAL',
+  DOCUMENT_VERSION = 'DOCUMENT_VERSION',
 }
 
 export enum ApprovalRequestStatus {

@@ -786,7 +786,7 @@ function RequestDetailDialog({
                   <div className="flex flex-wrap gap-1.5">
                     {uploadFiles.map((file, idx) => (
                       <div
-                        key={idx}
+                        key={`${file.name}_${file.lastModified}`}
                         className="flex items-center gap-1 text-xs border rounded px-2 py-1 bg-blue-50"
                       >
                         <Upload className="h-3 w-3 text-blue-600" />
@@ -1005,7 +1005,7 @@ function ActivityLogTimeline({ requestId }: { requestId: string }): React.JSX.El
   return (
     <div className="space-y-0">
       {activities.map((entry, idx) => (
-        <div key={idx} className="flex gap-3 pb-3 relative">
+        <div key={`${entry.timestamp}_${entry.action}`} className="flex gap-3 pb-3 relative">
           {idx < activities.length - 1 && (
             <div className="absolute left-[7px] top-5 bottom-0 w-0.5 bg-gray-200" />
           )}

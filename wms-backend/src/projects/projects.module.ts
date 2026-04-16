@@ -36,6 +36,7 @@ import { ProjectNcrService } from './project-ncr.service';
 import { WorkItemService } from './work-item.service';
 import { SubcontractorKpiService } from './subcontractor-kpi.service';
 import { DocumentsModule } from '../documents/documents.module';
+import { CloudStorageService } from '../shared/cloud-storage';
 import { ProjectRepository } from './infrastructure/repositories';
 import { PROJECT_REPO } from './domain/ports';
 
@@ -79,6 +80,7 @@ import { PROJECT_REPO } from './domain/ports';
     ProjectNcrService,
     WorkItemService,
     SubcontractorKpiService,
+    CloudStorageService,
     // Repository Pattern: Infrastructure → Domain Port
     { provide: PROJECT_REPO, useClass: ProjectRepository },
     ProjectRepository,

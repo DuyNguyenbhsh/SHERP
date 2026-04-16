@@ -26,18 +26,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
 import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
 import { ProjectRequestStatus } from './enums/request-status.enum';
-import { Request } from 'express';
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    userId: string;
-    username: string;
-    employeeId: string;
-    privileges: string[];
-    contexts: string[];
-    role?: string;
-  };
-}
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 
 @ApiTags('Project Requests - Yêu cầu & Phê duyệt Dự án')
 @ApiBearerAuth('bearer')

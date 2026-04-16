@@ -27,6 +27,8 @@ import {
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
 import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { ApprovalsService } from './approvals.service';
 import { CreateApprovalConfigDto } from './dto/create-approval-config.dto';
 import { ApproveStepDto } from './dto/approve-step.dto';
@@ -56,7 +58,10 @@ export class ApprovalsController {
   @ApiOperation({ summary: 'Tao cau hinh phe duyet' })
   @RequirePrivilege('MANAGE_APPROVALS')
   @Post('configs')
-  createConfig(@Req() req: any, @Body() dto: CreateApprovalConfigDto) {
+  createConfig(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateApprovalConfigDto,
+  ) {
     return this.approvalsService.createConfig(dto, req.user?.username);
   }
 
@@ -65,7 +70,7 @@ export class ApprovalsController {
   @Put('configs/:id')
   updateConfig(
     @Param('id') id: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: CreateApprovalConfigDto,
   ) {
     return this.approvalsService.updateConfig(id, dto, req.user?.username);
@@ -91,7 +96,7 @@ export class ApprovalsController {
   @RequirePrivilege('MANAGE_APPROVALS')
   @Get('excel/export')
   async exportExcel(
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const buffer = await this.approvalsService.exportToExcel();
     res.set({
@@ -105,7 +110,7 @@ export class ApprovalsController {
   @ApiOperation({ summary: 'Tai file mau import quy trinh' })
   @Get('excel/template')
   async downloadTemplate(
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const buffer = await this.approvalsService.getExcelTemplate();
     res.set({
@@ -136,7 +141,10 @@ export class ApprovalsController {
 
   @ApiOperation({ summary: 'Gui yeu cau phe duyet' })
   @Post('submit')
-  submitForApproval(@Req() req: any, @Body() dto: SubmitApprovalDto) {
+  submitForApproval(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: SubmitApprovalDto,
+  ) {
     const userId: string = req.user.userId;
     return this.approvalsService.submitForApproval(
       dto.entity_type,
@@ -149,7 +157,7 @@ export class ApprovalsController {
 
   @ApiOperation({ summary: 'Danh sach phe duyet cho xu ly (cua toi)' })
   @Get('pending')
-  findMyPending(@Req() req: any) {
+  findMyPending(@Req() req: AuthenticatedRequest) {
     return this.approvalsService.findPendingForUser(req.user.userId);
   }
 
@@ -181,7 +189,7 @@ export class ApprovalsController {
   @Patch('steps/:stepId/approve')
   approveStep(
     @Param('stepId') stepId: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: ApproveStepDto,
   ) {
     return this.approvalsService.approveStep(
@@ -197,7 +205,7 @@ export class ApprovalsController {
   @Patch('steps/:stepId/reject')
   rejectStep(
     @Param('stepId') stepId: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: ApproveStepDto,
   ) {
     return this.approvalsService.rejectStep(

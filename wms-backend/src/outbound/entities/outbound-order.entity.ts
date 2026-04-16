@@ -84,12 +84,18 @@ export class OutboundOrder {
   @Column({ nullable: true })
   waybill_id: string;
 
-  // Liên kết dự án (BOQ threshold check)
+  // Liên kết dự án (BOQ threshold check + Budget control)
   @Column({ nullable: true })
   project_id: string;
 
   @Column({ nullable: true })
   wbs_id: string;
+
+  @Column({ nullable: true })
+  category_id: string;
+
+  @Column({ type: 'decimal', precision: 18, scale: 2, nullable: true })
+  estimated_amount: number;
 
   @CreateDateColumn()
   created_at: Date;

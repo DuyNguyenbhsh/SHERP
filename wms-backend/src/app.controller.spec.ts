@@ -14,9 +14,13 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
-  describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+  describe('healthCheck', () => {
+    it('trả về status "ok" + message + timestamp', () => {
+      const result = appController.healthCheck();
+      expect(result.status).toBe('ok');
+      expect(result.message).toContain('SH-GROUP ERP Backend');
+      expect(result.timestamp).toEqual(expect.any(String));
+      expect(() => new Date(result.timestamp)).not.toThrow();
     });
   });
 });

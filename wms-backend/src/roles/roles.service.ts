@@ -226,11 +226,12 @@ export class RolesService {
           await this.roleRepo.save(newRole);
           savedCount++;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         persistErrors.push({
           row: 0,
           field: 'general',
-          message: `Loi xu ly "${code}": ${err.message}`,
+          message: `Loi xu ly "${code}": ${message}`,
         });
       }
     }

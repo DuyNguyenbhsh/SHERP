@@ -15,7 +15,9 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { BadRequestException } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
+import { CloudStorageService } from '../shared/cloud-storage';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -79,7 +81,17 @@ export class ProjectsController {
     private readonly ncrService: ProjectNcrService,
     private readonly workItemService: WorkItemService,
     private readonly kpiService: SubcontractorKpiService,
+    private readonly cloudStorage: CloudStorageService,
   ) {}
+
+  // Giới hạn NCR attachment: 10MB/file, chỉ chấp nhận image/PDF
+  private static readonly NCR_MAX_FILE_SIZE = 10 * 1024 * 1024;
+  private static readonly NCR_ALLOWED_MIMES = [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+  ];
 
   // ══════════════════════════════════════════
   // PROJECT CRUD
@@ -570,21 +582,41 @@ export class ProjectsController {
   })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post(':id/ncrs/:ncrId/attachments')
-  @UseInterceptors(FileInterceptor('file'))
-  uploadNcrAttachment(
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+    }),
+  )
+  async uploadNcrAttachment(
     @Param('ncrId') ncrId: string,
     @UploadedFile() file: Express.Multer.File,
     @Body('phase') phase: 'BEFORE' | 'AFTER',
     @Req() req: AuthenticatedRequest,
   ) {
-    // TODO: Tich hop CloudStorageService de upload len Cloudinary/S3
-    // Hien tai luu file_url placeholder de san sang khi co cloud storage
-    const fileUrl = `/uploads/ncr/${ncrId}/${file.originalname}`;
+    if (!file) {
+      throw new BadRequestException({
+        status: 'error',
+        message: 'Không tìm thấy file upload',
+        data: null,
+      });
+    }
+
+    if (!ProjectsController.NCR_ALLOWED_MIMES.includes(file.mimetype)) {
+      throw new BadRequestException({
+        status: 'error',
+        message: `Định dạng file không hỗ trợ. Chỉ chấp nhận: ${ProjectsController.NCR_ALLOWED_MIMES.join(', ')}`,
+        data: null,
+      });
+    }
+
+    const upload = await this.cloudStorage.upload(
+      file,
+      `ncr/${ncrId}/${phase || 'BEFORE'}`,
+    );
     return this.ncrService.addAttachment(
       ncrId,
       phase || 'BEFORE',
-      fileUrl,
-      file.originalname,
+      upload,
       req.user.userId,
     );
   }

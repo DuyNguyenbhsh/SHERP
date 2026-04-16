@@ -25,7 +25,9 @@ export class ProjectBoqService {
   ) {}
 
   async findItems(projectId: string, wbsId?: string) {
-    const where: any = { project_id: projectId };
+    const where: { project_id: string; wbs_id?: string } = {
+      project_id: projectId,
+    };
     if (wbsId) where.wbs_id = wbsId;
 
     const items = await this.boqRepo.find({
@@ -127,12 +129,12 @@ export class ProjectBoqService {
       if (rowNumber === 1) return; // Skip header
       totalRows++;
 
-      const itemCode = String(row.getCell(1).value ?? '').trim();
-      const itemName = String(row.getCell(2).value ?? '').trim();
-      const unit = String(row.getCell(3).value ?? '').trim();
+      const itemCode = (row.getCell(1).text ?? '').trim();
+      const itemName = (row.getCell(2).text ?? '').trim();
+      const unit = (row.getCell(3).text ?? '').trim();
       const quantity = Number(row.getCell(4).value) || 0;
       const unitPrice = Number(row.getCell(5).value) || 0;
-      const notes = String(row.getCell(7).value ?? '').trim() || undefined;
+      const notes = (row.getCell(7).text ?? '').trim() || undefined;
 
       if (!itemCode) {
         errors.push({
@@ -191,11 +193,12 @@ export class ProjectBoqService {
             );
           }
           successRows++;
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
           errors.push({
             row: item.sort_order ?? 0,
             field: 'general',
-            message: err.message,
+            message,
           });
         }
       }

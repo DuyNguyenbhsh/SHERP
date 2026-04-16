@@ -18,12 +18,13 @@ async function runCheck() {
     // ── [1/5] Kiểm tra file .env ──
     console.log('\n📂 ' + chalk.bold('[1/5] Kiểm tra file cấu hình .env...'));
     const envFiles = [
-        { path: 'wms-backend/.env', label: 'Backend .env' },
-        { path: 'wms-frontend/.env', label: 'Frontend .env' },
+        { paths: ['wms-backend/.env'], label: 'Backend .env' },
+        { paths: ['wms-frontend/.env.local', 'wms-frontend/.env'], label: 'Frontend .env' },
     ];
     for (const f of envFiles) {
-        if (existsSync(f.path)) {
-            console.log(chalk.green('   ✅ ' + f.label + ' — OK'));
+        const found = f.paths.find((p) => existsSync(p));
+        if (found) {
+            console.log(chalk.green('   ✅ ' + f.label + ' — OK (' + found + ')'));
         } else {
             console.log(chalk.red('   ❌ ' + f.label + ' — THIẾU!'));
             errors++;

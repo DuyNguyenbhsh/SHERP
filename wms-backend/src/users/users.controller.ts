@@ -22,6 +22,8 @@ import {
   ApiConsumes,
   ApiBody,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -49,7 +51,7 @@ export class UsersController {
   @RequirePrivilege(Privilege.VIEW_USERS)
   @Get('excel/export')
   async exportExcel(
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const buffer = await this.usersService.exportToExcel();
     res.set({
@@ -64,7 +66,7 @@ export class UsersController {
   @RequirePrivilege(Privilege.VIEW_USERS)
   @Get('excel/template')
   async downloadTemplate(
-    @Res({ passthrough: true }) res?: any,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const buffer = await this.usersService.getExcelTemplate();
     res.set({
@@ -105,14 +107,18 @@ export class UsersController {
   @ApiOperation({ summary: 'Xoa tai khoan' })
   @RequirePrivilege(Privilege.MANAGE_USER)
   @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: any) {
+  remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.usersService.remove(id, req.user?.userId);
   }
 
   @ApiOperation({ summary: 'Cap nhat tai khoan' })
   @RequirePrivilege(Privilege.MANAGE_USER)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateData: any, @Req() req: any) {
+  update(
+    @Param('id') id: string,
+    @Body() updateData: Partial<CreateUserDto>,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.usersService.update(id, updateData, req.user?.userId);
   }
 }

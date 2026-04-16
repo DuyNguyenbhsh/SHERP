@@ -26,6 +26,9 @@ import {
   ListChecks,
   UsersRound,
   ClipboardCheck,
+  FileSearch,
+  UserCircle,
+  TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -76,6 +79,14 @@ const sections: NavSection[] = [
     ],
   },
   {
+    title: 'Bán hàng (O2C)',
+    defaultOpen: true,
+    items: [
+      { label: 'Khách hàng', path: '/customers', icon: <UserCircle className="h-4 w-4" /> },
+      { label: 'Báo giá & Đơn bán', path: '/sales', icon: <TrendingUp className="h-4 w-4" /> },
+    ],
+  },
+  {
     title: 'Vận tải',
     defaultOpen: true,
     items: [
@@ -95,6 +106,11 @@ const sections: NavSection[] = [
       { label: 'Danh sách Dự án', path: '/projects', icon: <FolderKanban className="h-4 w-4" /> },
       { label: 'Công việc', path: '/projects/tasks', icon: <ListChecks className="h-4 w-4" /> },
       { label: 'Nguồn lực', path: '/projects/resources', icon: <UsersRound className="h-4 w-4" /> },
+      {
+        label: 'Tìm kiếm Tài liệu',
+        path: '/documents/search',
+        icon: <FileSearch className="h-4 w-4" />,
+      },
     ],
   },
   {

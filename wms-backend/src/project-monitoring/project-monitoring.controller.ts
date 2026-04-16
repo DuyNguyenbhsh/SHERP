@@ -15,6 +15,7 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { ProjectMonitoringService } from './project-monitoring.service';
 import {
   CreateProgressReportDto,
@@ -65,20 +66,23 @@ export class ProjectMonitoringController {
   @ApiOperation({ summary: 'Tạo báo cáo tiến độ (cập nhật sản lượng)' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post('reports')
-  createReport(@Body() dto: CreateProgressReportDto, @Req() req: any) {
+  createReport(
+    @Body() dto: CreateProgressReportDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.service.createReport(dto, req.user.userId, req.user.username);
   }
 
   @ApiOperation({ summary: 'Gửi báo cáo (BẮT BUỘC ảnh hiện trường)' })
   @Patch('reports/:id/submit')
-  submitReport(@Param('id') id: string, @Req() req: any) {
+  submitReport(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.submitReport(id, req.user.userId, req.user.username);
   }
 
   @ApiOperation({ summary: 'Duyệt báo cáo tiến độ' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch('reports/:id/approve')
-  approveReport(@Param('id') id: string, @Req() req: any) {
+  approveReport(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.approveReport(id, req.user.userId, req.user.username);
   }
 
@@ -88,7 +92,7 @@ export class ProjectMonitoringController {
   rejectReport(
     @Param('id') id: string,
     @Body() dto: ReportActionDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.rejectReport(
       id,
@@ -116,7 +120,7 @@ export class ProjectMonitoringController {
   @ApiOperation({ summary: 'Tạo Yêu cầu Thay đổi (VO)' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post('vo')
-  createVO(@Body() dto: CreateVODto, @Req() req: any) {
+  createVO(@Body() dto: CreateVODto, @Req() req: AuthenticatedRequest) {
     return this.service.createVO(dto, req.user.userId, req.user.username);
   }
 
@@ -129,14 +133,18 @@ export class ProjectMonitoringController {
   @ApiOperation({ summary: 'Duyệt VO → Auto cập nhật budget/timeline dự án' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch('vo/:id/approve')
-  approveVO(@Param('id') id: string, @Req() req: any) {
+  approveVO(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.approveVO(id, req.user.userId, req.user.username);
   }
 
   @ApiOperation({ summary: 'Từ chối VO' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch('vo/:id/reject')
-  rejectVO(@Param('id') id: string, @Body() dto: VOActionDto, @Req() req: any) {
+  rejectVO(
+    @Param('id') id: string,
+    @Body() dto: VOActionDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.service.rejectVO(
       id,
       req.user.userId,

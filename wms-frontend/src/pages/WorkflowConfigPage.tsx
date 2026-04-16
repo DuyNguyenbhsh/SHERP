@@ -819,7 +819,10 @@ export function WorkflowConfigPage(): React.JSX.Element {
               {steps.length > 0 && steps[0].approver_role && (
                 <div className="flex items-center gap-1 flex-wrap py-2 px-3 rounded-lg border bg-muted/20">
                   {steps.map((s, i) => (
-                    <div key={i} className="flex items-center gap-1">
+                    <div
+                      key={`step_${s.step_order}_${s.approver_role}`}
+                      className="flex items-center gap-1"
+                    >
                       <div
                         className={`rounded-full px-2.5 py-0.5 text-xs font-medium border ${s.is_mandatory ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted border-border text-muted-foreground'}`}
                       >
@@ -834,7 +837,10 @@ export function WorkflowConfigPage(): React.JSX.Element {
               )}
 
               {steps.map((step, idx) => (
-                <div key={idx} className="rounded-lg border p-3 bg-card space-y-2">
+                <div
+                  key={`step_${step.step_order}_${step.approver_role}`}
+                  className="rounded-lg border p-3 bg-card space-y-2"
+                >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-primary">{`Bước ${step.step_order}`}</span>
                     <div className="flex items-center gap-2">

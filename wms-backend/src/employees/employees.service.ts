@@ -402,11 +402,12 @@ export class EmployeesService {
           await this.employeeRepo.save(emp);
         }
         savedCount++;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
         persistErrors.push({
           row: 0,
           field: 'general',
-          message: `Lỗi lưu "${code}": ${err.message}`,
+          message: `Lỗi lưu "${code}": ${message}`,
         });
       }
     }

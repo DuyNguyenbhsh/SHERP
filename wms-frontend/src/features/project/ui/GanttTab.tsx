@@ -132,8 +132,12 @@ function GanttChart({ tasks, criticalIds }: { tasks: ProjectTaskItem[]; critical
           <Bar dataKey="start" stackId="a" fill="transparent" />
           {/* Visible bar for duration */}
           <Bar dataKey="duration" stackId="a" radius={[2, 2, 2, 2]}>
-            {chartData.map((entry, idx) => (
-              <Cell key={idx} fill={entry.isCritical ? '#ef4444' : '#3b82f6'} fillOpacity={0.85} />
+            {chartData.map((entry) => (
+              <Cell
+                key={entry.id}
+                fill={entry.isCritical ? '#ef4444' : '#3b82f6'}
+                fillOpacity={0.85}
+              />
             ))}
           </Bar>
         </BarChart>

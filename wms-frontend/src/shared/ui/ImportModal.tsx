@@ -224,8 +224,11 @@ export function ImportModal({
                   Chi tiết lỗi
                 </p>
                 <div className="max-h-[200px] overflow-y-auto rounded border divide-y text-xs">
-                  {result.errors.map((err, idx) => (
-                    <div key={idx} className="px-3 py-2 flex items-start gap-2">
+                  {result.errors.map((err) => (
+                    <div
+                      key={`${err.row}_${err.field}`}
+                      className="px-3 py-2 flex items-start gap-2"
+                    >
                       <X className="h-3 w-3 text-red-500 mt-0.5 shrink-0" />
                       <div>
                         {err.row > 0 && (

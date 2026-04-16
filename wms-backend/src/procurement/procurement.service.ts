@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,14 +15,22 @@ import { SerialNumber } from './entities/serial-number.entity';
 import { CreatePoDto } from './dto/create-po.dto';
 import { ReceiveGoodsDto } from './dto/receive-goods.dto';
 import { PoStatus, SerialStatus } from './enums/procurement.enum';
+import { ProjectsService } from '../projects/projects.service';
+import {
+  BudgetTransactionType,
+  BudgetAmountType,
+} from '../projects/enums/budget.enum';
 
 @Injectable()
 export class ProcurementService {
+  private readonly logger = new Logger(ProcurementService.name);
+
   constructor(
     // DataSource để quản lý Transaction toàn vẹn dữ liệu
     private readonly dataSource: DataSource,
     // Chỉ inject repo nào dùng ngoài transaction
     @InjectRepository(PurchaseOrder) private poRepo: Repository<PurchaseOrder>,
+    private readonly projectsService: ProjectsService,
   ) {}
 
   // ── 1. TẠO PO (Của bộ phận Mua hàng) ─────────────────────────────────────
@@ -38,12 +47,28 @@ export class ProcurementService {
       return poLine;
     });
 
+    // ── Budget Control: kiểm tra ngân sách khi PO gắn với dự án ──
+    if (dto.project_id && dto.category_id) {
+      await this.projectsService.checkBudgetLimit(
+        dto.project_id,
+        dto.category_id,
+        totalAmount,
+        {
+          transaction_type: BudgetTransactionType.PO,
+          transaction_ref: poNumber,
+          amount_type: BudgetAmountType.COMMITTED,
+        },
+      );
+    }
+
     const newPo = this.poRepo.create({
       po_number: poNumber,
       vendor_id: dto.vendor_id,
       // Giả lập PO đã được Giám đốc duyệt để kho nhập luôn (không cần bước Approve riêng)
       status: PoStatus.APPROVED,
       total_amount: totalAmount,
+      project_id: dto.project_id,
+      category_id: dto.category_id,
       lines,
     });
 
@@ -66,6 +91,9 @@ export class ProcurementService {
   //         dữ liệu bị hỏng nửa chừng (VD: PO đã COMPLETED nhưng Serial chưa lưu).
   // TD-08: poLines được gom lại và batch-save 1 lần thay vì N lần trong vòng lặp.
   async receiveGoods(dto: ReceiveGoodsDto) {
+    this.logger.log(
+      `receiveGoods bắt đầu: poId=${dto.po_id}, receivedBy=${dto.received_by}, lines=${dto.lines.length}`,
+    );
     return await this.dataSource.transaction(async (manager) => {
       // ── Bước 1: Tìm PO và validate ──
       const po = await manager.findOne(PurchaseOrder, {
@@ -144,6 +172,9 @@ export class ProcurementService {
         await manager.save(SerialNumber, serialEntities);
       }
 
+      this.logger.log(
+        `receiveGoods thành công: grnNumber=${savedGrn.grn_number}, poStatus=${po.status}`,
+      );
       return {
         message: `Nhập kho thành công! Phiếu ${savedGrn.grn_number} đã được tạo.`,
         data: savedGrn,

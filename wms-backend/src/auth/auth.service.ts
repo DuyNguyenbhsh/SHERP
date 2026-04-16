@@ -184,6 +184,7 @@ export class AuthService {
         id: user.id,
         username: user.username,
         role: roleName,
+        privileges: privilegeCodes,
       },
     };
   }
@@ -313,13 +314,16 @@ export class AuthService {
       );
     }
 
-    const { roleName } = await this.aggregatePrivileges(user.id);
+    const { roleName, privilegeCodes } = await this.aggregatePrivileges(
+      user.id,
+    );
 
     // Base response
     const result: Record<string, any> = {
       id: user.id,
       username: user.username,
       role: roleName,
+      privileges: privilegeCodes,
     };
 
     // Scope Resolution: Employee → Position → Org Unit → Project Scope

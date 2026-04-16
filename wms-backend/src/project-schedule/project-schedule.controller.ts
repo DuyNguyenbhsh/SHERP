@@ -16,12 +16,12 @@ import {
   ApiOperation,
   ApiQuery,
 } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { ProjectScheduleService } from './project-schedule.service';
 import {
   CreateTaskDto,
   UpdateTaskDto,
   CreateLinkDto,
-  ActionDto,
 } from './dto/schedule.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrivilegeGuard } from '../auth/guards/privilege.guard';
@@ -46,7 +46,7 @@ export class ProjectScheduleController {
   @ApiOperation({ summary: 'Tạo task mới (auto-recalculate CPM)' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Post('tasks')
-  createTask(@Body() dto: CreateTaskDto, @Req() req: any) {
+  createTask(@Body() dto: CreateTaskDto, @Req() req: AuthenticatedRequest) {
     return this.service.createTask(dto, req.user.userId);
   }
 
@@ -122,7 +122,7 @@ export class ProjectScheduleController {
   @Post('baselines')
   createBaseline(
     @Body() body: { project_id: string; title: string },
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.service.createBaseline(
       body.project_id,
@@ -135,7 +135,7 @@ export class ProjectScheduleController {
   @ApiOperation({ summary: 'Phê duyệt baseline → Freeze vĩnh viễn' })
   @RequirePrivilege('MANAGE_PROJECTS')
   @Patch('baselines/:id/approve')
-  approveBaseline(@Param('id') id: string, @Req() req: any) {
+  approveBaseline(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.service.approveBaseline(id, req.user.userId, req.user.username);
   }
 }

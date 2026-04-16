@@ -14,6 +14,8 @@ import { UserRole } from '../users/entities/user-role.entity';
 import { RolePrivilege } from '../users/entities/role-privilege.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { Employee } from '../users/entities/employee.entity';
+import { ProjectAssignment } from '../projects/entities/project-assignment.entity';
 
 // ── Mock Repositories ──
 const mockUserRepo = {
@@ -28,6 +30,8 @@ const mockResetTokenRepo = {
   findOne: jest.fn(),
   update: jest.fn(),
 };
+const mockEmployeeRepo = { findOne: jest.fn() };
+const mockAssignmentRepo = { find: jest.fn() };
 const mockAuthLogService = { log: jest.fn() };
 const mockMailService = { sendResetPasswordEmail: jest.fn() };
 const mockJwtService = { sign: jest.fn().mockReturnValue('mock-access-token') };
@@ -70,6 +74,11 @@ describe('AuthService', () => {
           provide: getRepositoryToken(PasswordResetToken),
           useValue: mockResetTokenRepo,
         },
+        { provide: getRepositoryToken(Employee), useValue: mockEmployeeRepo },
+        {
+          provide: getRepositoryToken(ProjectAssignment),
+          useValue: mockAssignmentRepo,
+        },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AuthLogService, useValue: mockAuthLogService },
@@ -110,6 +119,7 @@ describe('AuthService', () => {
         id: 'user-uuid-001',
         username: 'admin',
         role: 'SUPER_ADMIN',
+        privileges: ['VIEW_PO', 'CREATE_PO'],
       });
       expect(mockUserRepo.update).toHaveBeenCalledWith('user-uuid-001', {
         failed_login_count: 0,

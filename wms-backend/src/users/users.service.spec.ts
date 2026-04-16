@@ -8,6 +8,7 @@ import { Employee } from './entities/employee.entity';
 import { Role } from './entities/role.entity';
 import { UserRole } from './entities/user-role.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { ExcelService } from '../shared/excel';
 
 jest.mock('bcrypt', () => ({
   genSalt: jest.fn().mockResolvedValue('salt'),
@@ -69,6 +70,7 @@ describe('UsersService', () => {
         { provide: getRepositoryToken(Role), useValue: { findOne: jest.fn() } },
         { provide: getRepositoryToken(UserRole), useValue: {} },
         { provide: DataSource, useValue: { transaction: jest.fn() } },
+        { provide: ExcelService, useValue: {} },
       ],
     }).compile();
 
