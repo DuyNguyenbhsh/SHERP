@@ -22,7 +22,13 @@ export function FinanceKpiCards({ projectId }: FinanceKpiCardsProps): React.JSX.
     )
   }
 
-  const { finance } = summary
+  const finance = summary.finance ?? {
+    total_budget: 0,
+    total_actual: 0,
+    variance: 0,
+    variance_percent: 0,
+    transaction_count: 0,
+  }
   const isOverBudget = finance.variance < 0
 
   return (
