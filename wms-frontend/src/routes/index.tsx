@@ -4,6 +4,7 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import { LoginPage } from '@/features/auth'
 import { MainLayout } from '@/shared/components/layout'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { AuthGuard } from './AuthGuard'
 
 // ── Lazy-loaded pages (code splitting) ──
@@ -87,7 +88,7 @@ const CustomersPage = lazy(() =>
 )
 const SalesPage = lazy(() => import('@/pages/SalesPage').then((m) => ({ default: m.SalesPage })))
 
-function PageLoader() {
+function PageLoader(): React.JSX.Element {
   return (
     <div className="flex items-center justify-center h-64">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -95,11 +96,13 @@ function PageLoader() {
   )
 }
 
-function withSuspense(Component: ComponentType) {
+function withSuspense(Component: ComponentType): React.JSX.Element {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Component />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Component />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 

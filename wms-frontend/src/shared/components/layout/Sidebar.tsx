@@ -107,7 +107,7 @@ const sections: NavSection[] = [
       { label: 'Công việc', path: '/projects/tasks', icon: <ListChecks className="h-4 w-4" /> },
       { label: 'Nguồn lực', path: '/projects/resources', icon: <UsersRound className="h-4 w-4" /> },
       {
-        label: 'Tìm kiếm Tài liệu',
+        label: 'Quản lý Tài liệu',
         path: '/documents/search',
         icon: <FileSearch className="h-4 w-4" />,
       },

@@ -13,14 +13,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useSubmitDocumentApproval } from '@/entities/document'
+import { useSubmitDocumentApproval, useDocumentVersion } from '@/entities/document'
 
 interface SubmitApprovalDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   documentId: string
   versionId: string
-  versionNumber: string
   documentName: string
 }
 
@@ -29,11 +28,15 @@ export function SubmitApprovalDialog({
   onOpenChange,
   documentId,
   versionId,
-  versionNumber,
   documentName,
 }: SubmitApprovalDialogProps): React.JSX.Element {
   const [note, setNote] = useState('')
   const submitMut = useSubmitDocumentApproval()
+  const { data: version } = useDocumentVersion(
+    open ? documentId : undefined,
+    open ? versionId : undefined,
+  )
+  const versionNumber = version?.version_number ?? 'phiên bản hiện tại'
 
   const handleSubmit = (): void => {
     submitMut.mutate(

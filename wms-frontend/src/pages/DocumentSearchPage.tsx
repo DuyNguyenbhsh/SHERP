@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink, FileText, Loader2, Search } from 'lucide-react'
 
@@ -23,6 +23,7 @@ import {
 import { useDocumentSearch } from '@/entities/document'
 import type { DocumentSearchParams, DocumentStatus } from '@/entities/document'
 import { DocumentStatusBadge } from '@/features/document/ui/DocumentStatusBadge'
+import { useProjects } from '@/entities/project'
 
 const STATUS_OPTIONS: { value: DocumentStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -36,7 +37,7 @@ const STATUS_OPTIONS: { value: DocumentStatus | 'ALL'; label: string }[] = [
   { value: 'ARCHIVED', label: 'Lưu trữ' },
 ]
 
-const DOC_TYPES = [
+const DOC_TYPES: { value: string; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
   { value: 'CONTRACT', label: 'Hợp đồng' },
   { value: 'TECHNICAL', label: 'Kỹ thuật' },
@@ -45,6 +46,23 @@ const DOC_TYPES = [
   { value: 'CERTIFICATE', label: 'Chứng chỉ' },
 ]
 
+const docTypeLabel: Record<string, string> = {
+  CONTRACT: 'Hợp đồng',
+  TECHNICAL: 'Kỹ thuật',
+  QUALITY: 'Chất lượng',
+  REPORT: 'Báo cáo',
+  CERTIFICATE: 'Chứng chỉ',
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
 export function DocumentSearchPage(): React.JSX.Element {
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState<DocumentStatus | 'ALL'>('ALL')
@@ -52,6 +70,15 @@ export function DocumentSearchPage(): React.JSX.Element {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [offset, setOffset] = useState(0)
+
+  const { data: projects } = useProjects()
+  const projectMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const p of projects ?? []) {
+      map[p.id] = `${p.project_code} — ${p.project_name}`
+    }
+    return map
+  }, [projects])
 
   const params: DocumentSearchParams = {
     keyword: keyword.trim() || undefined,
@@ -83,7 +110,7 @@ export function DocumentSearchPage(): React.JSX.Element {
     <div className="space-y-6">
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-          <Search className="h-6 w-6" /> Tìm kiếm Tài liệu
+          <Search className="h-6 w-6" /> Quản lý Tài liệu
         </h1>
         <p className="text-sm text-muted-foreground">
           Tìm kiếm toàn văn trên tên tài liệu, ghi chú, tags (hỗ trợ tiếng Việt không dấu)
@@ -202,8 +229,10 @@ export function DocumentSearchPage(): React.JSX.Element {
             <TableHeader>
               <TableRow>
                 <TableHead>Tên tài liệu</TableHead>
+                <TableHead>Dự án</TableHead>
                 <TableHead>Loại</TableHead>
                 <TableHead>Trạng thái</TableHead>
+                <TableHead>Hết hạn</TableHead>
                 <TableHead>Ngày tạo</TableHead>
                 <TableHead className="w-[60px]"></TableHead>
               </TableRow>
@@ -220,12 +249,16 @@ export function DocumentSearchPage(): React.JSX.Element {
                     </Link>
                     {d.notes && <p className="truncate text-xs text-muted-foreground">{d.notes}</p>}
                   </TableCell>
+                  <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                    {projectMap[d.project_id] ?? '—'}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {d.doc_type ?? '—'}
+                    {d.doc_type ? (docTypeLabel[d.doc_type] ?? d.doc_type) : '—'}
                   </TableCell>
                   <TableCell>
                     <DocumentStatusBadge status={d.status} />
                   </TableCell>
+                  <TableCell className="text-sm">{formatDate(d.expiry_date)}</TableCell>
                   <TableCell className="text-sm">
                     {new Date(d.created_at).toLocaleDateString('vi-VN')}
                   </TableCell>

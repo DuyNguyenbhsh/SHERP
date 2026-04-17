@@ -22,6 +22,14 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -80,7 +88,6 @@ type DocAction =
 
 function FolderDocuments({
   folder,
-  projectId: _projectId,
   onAddDocument,
   onDocAction,
 }: {
@@ -88,13 +95,18 @@ function FolderDocuments({
   projectId: string
   onAddDocument: (folderId: string, folderName: string) => void
   onDocAction: (action: DocAction) => void
-}) {
+}): React.JSX.Element {
   const deleteMut = useDeleteDocument()
+  const [deleteTarget, setDeleteTarget] = useState<ProjectDocument | null>(null)
   const docs = folder.documents ?? []
 
-  const handleDelete = (doc: ProjectDocument) => {
-    deleteMut.mutate(doc.id, {
-      onSuccess: () => toast.success(`Đã xóa "${doc.document_name}"`),
+  const confirmDelete = (): void => {
+    if (!deleteTarget) return
+    deleteMut.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        toast.success(`Đã xóa "${deleteTarget.document_name}"`)
+        setDeleteTarget(null)
+      },
       onError: () => toast.error('Xóa thất bại'),
     })
   }
@@ -213,7 +225,7 @@ function FolderDocuments({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-red-600"
-                          onClick={() => handleDelete(doc)}
+                          onClick={() => setDeleteTarget(doc)}
                           disabled={deleteMut.isPending}
                         >
                           <Trash2 className="mr-2 h-3.5 w-3.5" /> Xóa
@@ -227,13 +239,39 @@ function FolderDocuments({
           </TableBody>
         </Table>
       )}
+
+      {/* Confirm delete dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa tài liệu</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc chắn muốn xóa <strong>{deleteTarget?.document_name}</strong>? Thao tác này
+              không thể hoàn tác.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Hủy
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteMut.isPending}>
+              {deleteMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Xóa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
 // ── Notifications Panel ──
 
-function NotificationsPanel({ notifications }: { notifications: DocumentNotification[] }) {
+function NotificationsPanel({
+  notifications,
+}: {
+  notifications: DocumentNotification[]
+}): React.JSX.Element {
   const markAllRead = useMarkAllNotificationsRead()
 
   const typeLabel: Record<string, string> = {
@@ -248,7 +286,10 @@ function NotificationsPanel({ notifications }: { notifications: DocumentNotifica
     EXPIRED: 'text-red-500',
   }
 
-  if (notifications.length === 0) {
+  // Filter out notifications with missing document data (defensive)
+  const safeNotifications = notifications.filter((n) => n.document)
+
+  if (safeNotifications.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <Bell className="mb-2 h-8 w-8" />
@@ -257,7 +298,7 @@ function NotificationsPanel({ notifications }: { notifications: DocumentNotifica
     )
   }
 
-  const unread = notifications.filter((n) => !n.is_read)
+  const unread = safeNotifications.filter((n) => !n.is_read)
 
   return (
     <div className="space-y-3">
@@ -280,7 +321,7 @@ function NotificationsPanel({ notifications }: { notifications: DocumentNotifica
       )}
 
       <div className="space-y-2">
-        {notifications.map((n) => (
+        {safeNotifications.map((n) => (
           <div
             key={n.id}
             className={`flex items-start gap-3 rounded-lg border px-3 py-2.5 ${n.is_read ? 'bg-white' : 'bg-amber-50/50 border-amber-200'}`}
@@ -289,9 +330,11 @@ function NotificationsPanel({ notifications }: { notifications: DocumentNotifica
               className={`mt-0.5 h-4 w-4 shrink-0 ${typeIcon[n.notification_type] ?? 'text-gray-400'}`}
             />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-800">{n.document.document_name}</p>
+              <p className="text-sm font-medium text-gray-800">
+                {n.document?.document_name ?? '—'}
+              </p>
               <p className="text-xs text-gray-500">
-                {n.document.folder?.folder_name} &middot; {typeLabel[n.notification_type]}
+                {n.document?.folder?.folder_name ?? '—'} &middot; {typeLabel[n.notification_type]}
               </p>
               <p className="text-xs text-gray-400">{formatDate(n.created_at)}</p>
             </div>
@@ -307,8 +350,9 @@ function NotificationsPanel({ notifications }: { notifications: DocumentNotifica
 export function ProjectDocumentsPage(): React.JSX.Element {
   const { projectId } = useParams<{ projectId: string }>()
   const { data: projects } = useProjects()
-  const { data: folders, isLoading } = useFolders(projectId)
+  const { data: folders, isLoading, error: foldersError } = useFolders(projectId)
   const { data: notifications } = useDocumentNotifications()
+  const foldersErrorMsg = foldersError ? 'Không thể tải thư mục. Vui lòng thử lại.' : null
   const generateMut = useGenerateNotifications()
 
   const [addDialog, setAddDialog] = useState<{ folderId: string; folderName: string } | null>(null)
@@ -326,18 +370,20 @@ export function ProjectDocumentsPage(): React.JSX.Element {
 
   // Summary stats
   const stats = useMemo(() => {
-    if (!folders) return { total: 0, expiring: 0, expired: 0 }
+    if (!folders) return { total: 0, expiring: 0, expired: 0, pending: 0 }
     let total = 0,
       expiring = 0,
-      expired = 0
+      expired = 0,
+      pending = 0
     for (const f of folders) {
       for (const d of f.documents ?? []) {
         total++
         if (d.status === 'EXPIRING_SOON') expiring++
         if (d.status === 'EXPIRED') expired++
+        if (d.status === 'PENDING_APPROVAL') pending++
       }
     }
-    return { total, expiring, expired }
+    return { total, expiring, expired, pending }
   }, [folders])
 
   return (
@@ -381,7 +427,7 @@ export function ProjectDocumentsPage(): React.JSX.Element {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-4">
         <div className="rounded-lg border bg-card p-4">
           <p className="text-xs font-medium text-muted-foreground">Tổng tài liệu</p>
           <p className="mt-1 text-2xl font-bold">{stats.total}</p>
@@ -389,6 +435,10 @@ export function ProjectDocumentsPage(): React.JSX.Element {
         <div className="rounded-lg border bg-card p-4">
           <p className="text-xs font-medium text-muted-foreground">Thư mục</p>
           <p className="mt-1 text-2xl font-bold">{folders?.length ?? 0}</p>
+        </div>
+        <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+          <p className="text-xs font-medium text-blue-600">Chờ duyệt</p>
+          <p className="mt-1 text-2xl font-bold text-blue-600">{stats.pending}</p>
         </div>
         <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
           <p className="text-xs font-medium text-amber-600">Sắp hết hạn</p>
@@ -415,7 +465,12 @@ export function ProjectDocumentsPage(): React.JSX.Element {
         </TabsList>
 
         <TabsContent value="folders" className="space-y-6 pt-4">
-          {isLoading ? (
+          {foldersErrorMsg ? (
+            <div className="flex flex-col items-center justify-center rounded-lg border border-red-200 bg-red-50/50 py-12 text-red-600">
+              <AlertTriangle className="mb-2 h-8 w-8" />
+              <p className="text-sm">{foldersErrorMsg}</p>
+            </div>
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -479,7 +534,6 @@ export function ProjectDocumentsPage(): React.JSX.Element {
           onOpenChange={(open) => !open && setDocAction(null)}
           documentId={docAction.doc.id}
           versionId={docAction.doc.current_version_id}
-          versionNumber="phiên bản hiện tại"
           documentName={docAction.doc.document_name}
         />
       )}
