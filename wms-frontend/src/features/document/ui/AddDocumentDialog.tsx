@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Upload } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useCreateDocument } from '@/entities/document'
+import { api } from '@/shared/api/axios'
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 const formSchema = z.object({
   document_name: z.string().min(1, 'Tên tài liệu không được để trống').max(255),
@@ -35,6 +38,12 @@ interface AddDocumentDialogProps {
   folderName: string
 }
 
+interface CloudinaryResponse {
+  data: {
+    secure_url: string
+  }
+}
+
 export function AddDocumentDialog({
   open,
   onOpenChange,
@@ -44,6 +53,9 @@ export function AddDocumentDialog({
 }: AddDocumentDialogProps) {
   const createMutation = useCreateDocument()
   const [submitting, setSubmitting] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
@@ -55,32 +67,68 @@ export function AddDocumentDialog({
     defaultValues: { document_name: '', file_url: '', expiry_date: '', notes: '' },
   })
 
-  const onSubmit = (values: FormValues): void => {
+  const handleFileChange = (f: File | null): void => {
+    if (!f) {
+      setFile(null)
+      setFileError(null)
+      return
+    }
+    if (f.size > MAX_FILE_SIZE) {
+      setFileError('File vượt quá 50MB')
+      setFile(null)
+      return
+    }
+    setFileError(null)
+    setFile(f)
+  }
+
+  const resetForm = (): void => {
+    reset()
+    setFile(null)
+    setFileError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const onSubmit = async (values: FormValues): Promise<void> => {
     setSubmitting(true)
-    createMutation.mutate(
-      {
+    try {
+      let fileUrl = values.file_url?.trim() || undefined
+      let mimeType: string | undefined
+
+      if (file) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', `documents/${projectId}`)
+        const res = await api.post<CloudinaryResponse>('/upload/cloudinary', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+        fileUrl = res.data.data.secure_url
+        mimeType = file.type || undefined
+      }
+
+      await createMutation.mutateAsync({
         projectId,
         folderId,
         document_name: values.document_name,
-        file_url: values.file_url || undefined,
+        file_url: fileUrl,
+        mime_type: mimeType,
         expiry_date: values.expiry_date || undefined,
         notes: values.notes || undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Thêm tài liệu thành công')
-          reset()
-          onOpenChange(false)
-        },
-        onError: () => toast.error('Thêm tài liệu thất bại'),
-        onSettled: () => setSubmitting(false),
-      },
-    )
+      })
+
+      toast.success('Thêm tài liệu thành công')
+      resetForm()
+      onOpenChange(false)
+    } catch {
+      toast.error('Thêm tài liệu thất bại')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleClose = (isOpen: boolean): void => {
     if (!submitting) {
-      if (!isOpen) reset()
+      if (!isOpen) resetForm()
       onOpenChange(isOpen)
     }
   }
@@ -109,11 +157,31 @@ export function AddDocumentDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="file_url">Đường dẫn file</Label>
+            <Label htmlFor="file">Upload file (tối đa 50MB)</Label>
+            <Input
+              id="file"
+              type="file"
+              ref={fileInputRef}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.mp4"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+            />
+            {file && (
+              <p className="text-xs text-muted-foreground">
+                {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
+              </p>
+            )}
+            {fileError && <p className="text-sm text-destructive">{fileError}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="file_url" className="text-muted-foreground">
+              Hoặc dán đường dẫn file có sẵn
+            </Label>
             <Input
               id="file_url"
               placeholder="https://storage.example.com/doc.pdf"
               {...register('file_url')}
+              disabled={!!file}
             />
           </div>
 
@@ -132,8 +200,12 @@ export function AddDocumentDialog({
             <Button type="button" variant="outline" onClick={() => handleClose(false)}>
               Hủy
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={submitting || !!fileError}>
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
               Thêm tài liệu
             </Button>
           </DialogFooter>
