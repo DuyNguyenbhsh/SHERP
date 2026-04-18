@@ -210,7 +210,7 @@ export function BoqTab({ projectId }: { projectId: string }): React.JSX.Element 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {items.map((item: BoqItem) => {
+              {(items ?? []).map((item: BoqItem) => {
                 const { pct, level } = getConsumptionStatus(item)
 
                 return (

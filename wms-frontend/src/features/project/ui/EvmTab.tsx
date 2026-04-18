@@ -50,7 +50,7 @@ export function EvmTab({ projectId }: { projectId: string }): React.JSX.Element 
     )
   }
 
-  if (!evm) {
+  if (!evm?.summary) {
     return (
       <p className="text-center text-muted-foreground py-12">
         Chưa có dữ liệu EVM. Cần thiết lập WBS + CBS trước.
@@ -116,14 +116,14 @@ export function EvmTab({ projectId }: { projectId: string }): React.JSX.Element 
             </TableRow>
           </TableHeader>
           <TableBody>
-            {evm.breakdown.length === 0 ? (
+            {!evm.breakdown?.length ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Chưa có dữ liệu
                 </TableCell>
               </TableRow>
             ) : (
-              evm.breakdown.map((row) => (
+              (evm.breakdown ?? []).map((row) => (
                 <TableRow key={row.wbs_id} className={row.cost_variance < 0 ? 'bg-red-50/40' : ''}>
                   <TableCell className="font-mono text-xs">{row.wbs_code}</TableCell>
                   <TableCell className="font-medium">{row.wbs_name}</TableCell>

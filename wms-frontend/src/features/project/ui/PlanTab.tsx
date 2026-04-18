@@ -601,7 +601,7 @@ export function PlanTab({ projectId }: { projectId: string }): React.JSX.Element
           </div>
         ) : (
           <div className="space-y-2">
-            {plans.map((p) => (
+            {(plans ?? []).map((p) => (
               <div
                 key={p.id}
                 className={`rounded-lg border p-4 cursor-pointer hover:bg-muted/30 transition-colors ${

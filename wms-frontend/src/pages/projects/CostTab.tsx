@@ -98,7 +98,7 @@ export function CostTab({ projectId }: CostTabProps): React.JSX.Element {
           </Button>
         </div>
 
-        {costSummary && costSummary.breakdown.length > 0 ? (
+        {costSummary?.breakdown?.length ? (
           <Table>
             <TableHeader>
               <TableRow>

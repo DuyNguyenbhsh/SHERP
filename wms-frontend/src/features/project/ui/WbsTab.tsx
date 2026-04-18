@@ -480,7 +480,7 @@ export function WbsTab({ projectId }: { projectId: string }): React.JSX.Element 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {wbsTree.map((node) => (
+              {(wbsTree ?? []).map((node) => (
                 <WbsTreeRow key={node.id} node={node} projectId={projectId} />
               ))}
             </TableBody>

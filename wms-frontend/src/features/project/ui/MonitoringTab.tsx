@@ -300,7 +300,7 @@ function ProgressReportSection({ projectId }: { projectId: string }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {reports.map((r) => (
+          {(reports ?? []).map((r) => (
             <div key={r.id} className="rounded-lg border p-3 hover:bg-muted/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -484,7 +484,7 @@ function VOSection({ projectId }: { projectId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vos.map((vo) => (
+            {(vos ?? []).map((vo) => (
               <TableRow key={vo.id}>
                 <TableCell className="font-mono text-xs">{vo.vo_code}</TableCell>
                 <TableCell className="font-medium text-sm">{vo.title}</TableCell>
