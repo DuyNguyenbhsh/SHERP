@@ -27,6 +27,7 @@ import {
   UsersRound,
   ClipboardCheck,
   FileSearch,
+  FolderArchive,
   UserCircle,
   TrendingUp,
 } from 'lucide-react'
@@ -106,10 +107,21 @@ const sections: NavSection[] = [
       { label: 'Danh sách Dự án', path: '/projects', icon: <FolderKanban className="h-4 w-4" /> },
       { label: 'Công việc', path: '/projects/tasks', icon: <ListChecks className="h-4 w-4" /> },
       { label: 'Nguồn lực', path: '/projects/resources', icon: <UsersRound className="h-4 w-4" /> },
+    ],
+  },
+  {
+    title: 'Quản lý Tài liệu',
+    defaultOpen: true,
+    items: [
       {
-        label: 'Quản lý Tài liệu',
+        label: 'Tìm kiếm Tài liệu',
         path: '/documents/search',
         icon: <FileSearch className="h-4 w-4" />,
+      },
+      {
+        label: 'Tài liệu theo Dự án',
+        path: '/documents',
+        icon: <FolderArchive className="h-4 w-4" />,
       },
     ],
   },

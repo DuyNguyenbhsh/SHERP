@@ -83,6 +83,9 @@ const WorkflowConfigPage = lazy(() =>
 const DocumentSearchPage = lazy(() =>
   import('@/pages/DocumentSearchPage').then((m) => ({ default: m.DocumentSearchPage })),
 )
+const DocumentsHubPage = lazy(() =>
+  import('@/pages/DocumentsHubPage').then((m) => ({ default: m.DocumentsHubPage })),
+)
 const CustomersPage = lazy(() =>
   import('@/pages/CustomersPage').then((m) => ({ default: m.CustomersPage })),
 )
@@ -138,9 +141,11 @@ export const router = createBrowserRouter([
           { path: 'projects', element: withSuspense(ProjectsPage) },
           { path: 'projects/:projectId', element: withSuspense(ProjectDetailPage) },
           { path: 'projects/:projectId/documents', element: withSuspense(ProjectDocumentsPage) },
-          { path: 'documents/search', element: withSuspense(DocumentSearchPage) },
           { path: 'projects/tasks', element: withSuspense(TasksPage) },
           { path: 'projects/resources', element: withSuspense(ResourcesPage) },
+          // Quản lý Tài liệu (standalone module)
+          { path: 'documents', element: withSuspense(DocumentsHubPage) },
+          { path: 'documents/search', element: withSuspense(DocumentSearchPage) },
           // Tài chính - Kế toán
           { path: 'finance/gl', element: withSuspense(GeneralLedgerPage) },
           { path: 'finance/ar', element: withSuspense(AccountsReceivablePage) },
