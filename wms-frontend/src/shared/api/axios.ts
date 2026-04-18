@@ -17,11 +17,21 @@ const api = axios.create({
   },
 })
 
-// ── Request Interceptor: Gắn JWT token ──
+// ── Request Interceptor: Gắn JWT token + nới timeout cho upload ──
+const UPLOAD_TIMEOUT_MS = 120000
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  // File upload (multipart/form-data) cần timeout dài hơn mặc định 15s
+  const isMultipart =
+    typeof config.data !== 'undefined' &&
+    typeof FormData !== 'undefined' &&
+    config.data instanceof FormData
+  if (isMultipart && (config.timeout ?? 0) < UPLOAD_TIMEOUT_MS) {
+    config.timeout = UPLOAD_TIMEOUT_MS
   }
   return config
 })
