@@ -166,16 +166,24 @@ function FolderDocuments({
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                      <span className="font-medium">{doc.document_name}</span>
-                      {doc.file_url && (
+                      {doc.file_url ? (
                         <a
                           href={doc.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:text-blue-700"
+                          title="Mở file trong tab mới"
+                          className="inline-flex items-center gap-1.5 font-medium text-blue-600 hover:text-blue-800 hover:underline"
                         >
-                          <ExternalLink className="h-3 w-3" />
+                          {doc.document_name}
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                         </a>
+                      ) : (
+                        <span
+                          className="font-medium text-muted-foreground"
+                          title="Chưa có file đính kèm"
+                        >
+                          {doc.document_name}
+                        </span>
                       )}
                     </div>
                   </TableCell>
