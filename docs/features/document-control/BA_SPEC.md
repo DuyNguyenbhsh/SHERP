@@ -221,4 +221,97 @@ Các tính năng KHÔNG nằm trong scope MVP 4-sprint:
 
 ---
 
-**Next Gate:** Gate 2 — SA_DESIGN (Entity + ERD + API + Clean Architecture folder)
+## 8. TÍCH HỢP KÝ SỐ (E-SIGNATURE INTEGRATION)
+
+> **Nguyên tắc triển khai:** Tách **2 giai đoạn độc lập tuần tự**. Phase A (Duyệt nội bộ) BẮT BUỘC hoàn thành, nghiệm thu và vận hành ổn định trước khi mở Phase B (Ký số ngoại qua Wesign). **Không gộp 2 phase chung 1 sprint.**
+
+### 8.1 Phase A — Duyệt nội bộ (MVP — LÀM TRƯỚC)
+
+**Mục tiêu:** Người phê duyệt trong SHERP xác nhận/từ chối tài liệu để chuyển trạng thái document từ `PENDING_APPROVAL` → `APPROVED` | `REJECTED`. Dấu duyệt là **internal approval stamp** (không có giá trị pháp lý chữ ký số).
+
+**Tái sử dụng:** Module `approvals/` đã DONE (Sprint 4) — workflow engine + steps + notifications.
+
+**Luồng nghiệp vụ:**
+1. Uploader submit `document_version` → chọn `workflow_id` phù hợp với `doc_type`
+2. Hệ thống tạo `approval_request` + N `approval_steps` theo thứ tự workflow
+3. Approver step 1 nhận notification → mở `SubmitApprovalDialog` → xem preview file → click **Approve** hoặc **Reject** (+ lý do bắt buộc)
+4. Hệ thống ghi `audit_log` (actor_id, action, old_status, new_status, timestamp, IP) — INSERT-only, immutable
+5. Tất cả step APPROVE → `ProjectDocument.status = APPROVED`, `approved_at = now()`, `approved_by = final approver`
+6. Bất kỳ step nào REJECT → `status = REJECTED`, document quay về `DRAFT` cho uploader sửa/upload version mới
+
+**Scope Phase A (TRONG MVP):**
+- Duyệt tuần tự đa cấp (step_order 1 → 2 → N)
+- Duyệt song song cùng cấp (quorum ≥ X% approvers trong cùng step)
+- In-app notification (email dời Phase B)
+- Audit timeline đầy đủ (hiển thị qua `AuditTimelineDialog`)
+- Rollback trạng thái khi reject (không ảnh hưởng version cũ đã APPROVED)
+
+**Definition of Done — Phase A:**
+- [ ] 100% test `approval.workflow.service` PASS (unit + integration)
+- [ ] UI `SubmitApprovalDialog` + reject với lý do hoạt động end-to-end
+- [ ] Audit log hiển thị đầy đủ trong `AuditTimelineDialog` (actor, action, delta, timestamp)
+- [ ] UAT pass với 2 use case thực: duyệt Hợp đồng NCC + duyệt Bản vẽ thiết kế
+- [ ] Performance: duyệt 1 tài liệu < 1s response, audit query < 500ms
+
+---
+
+### 8.2 Phase B — Tích hợp Wesign (MISA AMISApp) — GIAI ĐOẠN SAU
+
+**Mục tiêu:** Sau khi tài liệu đã APPROVED nội bộ (Phase A), tài liệu pháp lý (Hợp đồng CĐT, HĐ NCC, Biên bản nghiệm thu) cần chữ ký số có giá trị pháp lý → gọi Wesign API tạo signing request.
+
+#### Pre-requisites — KHÔNG bắt đầu Phase B nếu chưa đủ:
+- [ ] Phase A đã nghiệm thu PASS + vận hành ít nhất 1 tháng ổn định
+- [ ] IMPC cấp tài khoản MISA AMISApp + API key + `wesign_webhook_secret`
+- [ ] Gate 2 SA_DESIGN riêng cho Phase B (webhook, Bull Queue, HMAC verify, cron fallback)
+- [ ] Upstash Redis + Render Background Worker đã provisioned và test
+- [ ] Legal team confirm đúng chuẩn Luật Giao dịch Điện tử VN (Nghị định 130/2018/NĐ-CP)
+- [ ] Resend/SendGrid đã setup + verified sender domain
+
+#### Luồng nghiệp vụ đề xuất (chi tiết ở Phase B SA_DESIGN):
+1. Document đã APPROVED nội bộ (Phase A hoàn tất) → xuất hiện nút **"Gửi ký số"** (chỉ cho `doc_type` cần chữ ký số)
+2. Frontend `POST /documents/:id/wesign` → NestJS API enqueue Bull job `wesign.create_request`
+3. Background Worker consume job → call Wesign API → nhận `wesign_request_id` + `signing_url` cho từng ký viên
+4. Worker gửi email (Resend) + in-app notification kèm signing_url tới ký viên theo thứ tự
+5. Ký viên ký trên MISA AMISApp → Wesign webhook `POST /webhooks/wesign`
+6. API verify HMAC-SHA256 signature (reject nếu invalid) → enqueue job `wesign.update_status`
+7. Worker update `approval_steps.signed_at`, tải file đã ký từ Wesign → lưu Cloudinary/R2
+8. Cron fallback (`@Cron('*/15 * * * *')`) check các `wesign_request` pending > 1h → call Wesign GET status để đồng bộ
+
+#### Scope Phase B:
+- Wesign sequential signing (theo `step_order`)
+- Webhook idempotency (same `wesign_request_id` + event → skip xử lý lại)
+- Cron polling fallback (defense-in-depth khi webhook fail)
+- Email transactional notification (Resend)
+- Download file đã ký về storage nội bộ (không phụ thuộc Wesign lâu dài)
+
+#### OUT of Phase B (dời Phase C):
+- Ký số qua CA cloud khác ngoài Wesign (VNPT-CA, Viettel-CA, FPT-CA)
+- Ký hàng loạt (batch signing nhiều document cùng lúc)
+- Ký trên mobile app (dời theo lộ trình mobile app)
+- Ký nội bộ SHERP + chữ ký hình ảnh (handwritten signature) — KHÔNG làm
+
+#### Gate điều kiện kích hoạt Phase B:
+> Chỉ bắt đầu Phase B khi **Product Owner + CTO + Legal** cùng ký vào **Gate Transition Document** xác nhận:
+> 1. Phase A PASS 100% acceptance criteria
+> 2. Toàn bộ pre-requisites (section 8.2) đã đáp ứng
+> 3. Budget + timeline Phase B được phê duyệt trong Steering Committee
+
+---
+
+### 8.3 Ma trận trạng thái document cross-phase
+
+| Trạng thái | Phase A | Phase B | Mô tả |
+|---|---|---|---|
+| `DRAFT` | ✅ | ✅ | Uploader đang soạn, chưa gửi duyệt |
+| `PENDING_APPROVAL` | ✅ | ✅ | Đã gửi duyệt nội bộ, chờ approvers |
+| `APPROVED` | ✅ | ✅ | Duyệt nội bộ xong (điểm dừng cuối của Phase A) |
+| `REJECTED` | ✅ | ✅ | Bị reject nội bộ, quay về DRAFT |
+| `PENDING_SIGNATURE` | ❌ | ✅ | Đã APPROVED, đang chờ ký số ngoài |
+| `SIGNED` | ❌ | ✅ | Hoàn tất ký số qua Wesign |
+| `SIGN_FAILED` | ❌ | ✅ | Ký số thất bại (ký viên reject/timeout) |
+
+**Lưu ý BC:** Phase A chỉ làm việc với 4 trạng thái đầu. Không hard-code enum cho 3 trạng thái Phase B — dời vào migration Phase B để tránh pollute schema hiện tại.
+
+---
+
+**Next Gate:** Gate 2 — SA_DESIGN (Entity + ERD + API + Clean Architecture folder). **Phase A** SA_DESIGN đã DONE. **Phase B** SA_DESIGN chưa bắt đầu — mở task khi đủ pre-requisites.
