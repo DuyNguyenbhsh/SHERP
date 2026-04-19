@@ -7,6 +7,7 @@ import type {
   CreateMasterPlanPayload,
   UpdateMasterPlanPayload,
   CreateWbsNodePayload,
+  UpdateWbsNodePayload,
   CreateTaskTemplatePayload,
 } from '../types'
 
@@ -111,18 +112,36 @@ export function useCreateWbsNode(planId: string) {
   })
 }
 
-export function useArchiveWbsNode(planId: string) {
+export function useUpdateWbsNode(planId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (nodeId: string) => {
-      await api.post(`/master-plan/wbs-nodes/${nodeId}/archive`)
+    mutationFn: async (args: { nodeId: string; data: UpdateWbsNodePayload }) => {
+      const { data } = await api.patch<ApiResponse<WbsNode>>(
+        `/master-plan/${planId}/wbs-nodes/${args.nodeId}`,
+        args.data,
+      )
+      return data.data
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'wbs-tree'] }),
   })
 }
 
+export function useArchiveWbsNode(planId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (nodeId: string) => {
+      await api.post(`/master-plan/${planId}/wbs-nodes/${nodeId}/archive`)
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'wbs-tree'] })
+      void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'task-templates'] })
+      void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'dashboard'] })
+    },
+  })
+}
+
 // ── Task Template ─────────────────────────────────────────────
-export function useCreateTaskTemplate(wbsNodeId: string) {
+export function useCreateTaskTemplate(wbsNodeId: string, planId?: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: CreateTaskTemplatePayload) => {
@@ -132,7 +151,14 @@ export function useCreateTaskTemplate(wbsNodeId: string) {
       )
       return data.data
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['master-plan'] }),
+    onSuccess: () => {
+      if (planId) {
+        void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'task-templates'] })
+        void qc.invalidateQueries({ queryKey: ['master-plan', planId, 'dashboard'] })
+      } else {
+        void qc.invalidateQueries({ queryKey: ['master-plan'] })
+      }
+    },
   })
 }
 

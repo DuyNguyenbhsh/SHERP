@@ -7,6 +7,7 @@ export {
   useCloseMasterPlan,
   useWbsTree,
   useCreateWbsNode,
+  useUpdateWbsNode,
   useArchiveWbsNode,
   useCreateTaskTemplate,
   usePreviewTaskTemplate,
@@ -21,6 +22,7 @@ export type {
   CreateMasterPlanPayload,
   UpdateMasterPlanPayload,
   CreateWbsNodePayload,
+  UpdateWbsNodePayload,
   CreateTaskTemplatePayload,
 } from './types'
 export {

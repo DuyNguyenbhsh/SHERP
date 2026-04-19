@@ -8,6 +8,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 import { WbsNodeType } from '../enums/master-plan.enum';
 import { MasterPlan } from './master-plan.entity';
@@ -16,6 +17,7 @@ import { TaskTemplate } from './task-template.entity';
 @Entity('wbs_nodes')
 @Index('IDX_WBS_PLAN_CODE', ['plan_id', 'wbs_code'], { unique: true })
 @Index('IDX_WBS_PARENT', ['parent_id'])
+@Index('IDX_WBS_PLAN_ARCHIVED', ['plan_id', 'is_archived'])
 export class WbsNode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -30,7 +32,7 @@ export class WbsNode {
   @Column({ type: 'uuid', nullable: true })
   parent_id: string | null;
 
-  @ManyToOne(() => WbsNode, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => WbsNode, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'parent_id' })
   parent: WbsNode | null;
 
@@ -49,6 +51,9 @@ export class WbsNode {
   @Column({ type: 'bigint', default: 0 })
   budget_vnd: string;
 
+  @Column({ type: 'int', default: 0 })
+  sort_order: number;
+
   @Column({ type: 'date', nullable: true })
   start_date: string | null;
 
@@ -63,6 +68,9 @@ export class WbsNode {
 
   @OneToMany(() => TaskTemplate, (t) => t.wbs_node)
   task_templates: TaskTemplate[];
+
+  @VersionColumn({ type: 'int', default: 1 })
+  version: number;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;

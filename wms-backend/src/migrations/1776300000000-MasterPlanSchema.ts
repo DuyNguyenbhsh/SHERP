@@ -32,6 +32,7 @@ export class MasterPlanSchema1776300000000 implements MigrationInterface {
         "end_date" date,
         "approved_by" uuid,
         "approved_at" timestamptz,
+        "version" int NOT NULL DEFAULT 1,
         "created_at" timestamptz NOT NULL DEFAULT now(),
         "updated_at" timestamptz NOT NULL DEFAULT now()
       );
@@ -45,18 +46,22 @@ export class MasterPlanSchema1776300000000 implements MigrationInterface {
       CREATE TABLE "wbs_nodes" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "plan_id" uuid NOT NULL REFERENCES "master_plans"("id") ON DELETE CASCADE,
-        "parent_id" uuid REFERENCES "wbs_nodes"("id") ON DELETE SET NULL,
+        "parent_id" uuid REFERENCES "wbs_nodes"("id") ON DELETE RESTRICT,
         "wbs_code" varchar(20) NOT NULL,
         "name" varchar(200) NOT NULL,
         "level" smallint NOT NULL,
         "node_type" "wbs_node_type" NOT NULL,
         "budget_vnd" bigint NOT NULL DEFAULT 0,
+        "sort_order" int NOT NULL DEFAULT 0,
         "start_date" date,
         "end_date" date,
         "responsible_employee_id" uuid,
         "is_archived" boolean NOT NULL DEFAULT false,
+        "version" int NOT NULL DEFAULT 1,
         "created_at" timestamptz NOT NULL DEFAULT now(),
-        "updated_at" timestamptz NOT NULL DEFAULT now()
+        "updated_at" timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT "CK_WBS_LEVEL_RANGE" CHECK ("level" BETWEEN 1 AND 5),
+        CONSTRAINT "CK_WBS_BUDGET_NON_NEGATIVE" CHECK ("budget_vnd" >= 0)
       );
     `);
     await queryRunner.query(`
@@ -64,6 +69,9 @@ export class MasterPlanSchema1776300000000 implements MigrationInterface {
     `);
     await queryRunner.query(`
       CREATE INDEX "IDX_WBS_PARENT" ON "wbs_nodes" ("parent_id");
+    `);
+    await queryRunner.query(`
+      CREATE INDEX "IDX_WBS_PLAN_ARCHIVED" ON "wbs_nodes" ("plan_id","is_archived");
     `);
 
     // ── task_templates ────────────────────────────────────

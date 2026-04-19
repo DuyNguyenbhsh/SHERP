@@ -21,6 +21,7 @@ import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
 import { CreateMasterPlanDto } from './dto/create-master-plan.dto';
 import { UpdateMasterPlanDto } from './dto/update-master-plan.dto';
 import { CreateWbsNodeDto } from './dto/create-wbs-node.dto';
+import { UpdateWbsNodeDto } from './dto/update-wbs-node.dto';
 import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { MasterPlanService } from './master-plan.service';
 
@@ -83,18 +84,39 @@ export class MasterPlanController {
     return this.service.addWbsNode(planId, dto);
   }
 
-  @ApiOperation({ summary: 'Cây WBS đầy đủ (flat list, sort theo wbs_code)' })
+  @ApiOperation({
+    summary: 'Cây WBS đầy đủ (flat list, sort level + sort_order + wbs_code)',
+  })
   @RequirePrivilege('VIEW_MASTER_PLAN')
   @Get(':planId/wbs-tree')
   getWbsTree(@Param('planId') planId: string) {
     return this.service.getWbsTree(planId);
   }
 
-  @ApiOperation({ summary: 'Archive WBS node (soft delete)' })
+  @ApiOperation({
+    summary: 'Cập nhật WBS node (name, budget, dates, responsible)',
+  })
   @RequirePrivilege('MANAGE_MASTER_PLAN')
-  @Post('wbs-nodes/:id/archive')
-  archiveNode(@Param('id') id: string) {
-    return this.service.archiveWbsNode(id);
+  @Patch(':planId/wbs-nodes/:nodeId')
+  updateWbsNode(
+    @Param('planId') planId: string,
+    @Param('nodeId') nodeId: string,
+    @Body() dto: UpdateWbsNodeDto,
+  ) {
+    return this.service.updateWbsNode(planId, nodeId, dto);
+  }
+
+  @ApiOperation({
+    summary:
+      'Archive WBS node (soft delete đệ quy + block khi có work_items NEW/IN_PROGRESS)',
+  })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post(':planId/wbs-nodes/:nodeId/archive')
+  archiveNode(
+    @Param('planId') planId: string,
+    @Param('nodeId') nodeId: string,
+  ) {
+    return this.service.archiveWbsNode(planId, nodeId);
   }
 
   // ── Task Template ─────────────────────────────────────────

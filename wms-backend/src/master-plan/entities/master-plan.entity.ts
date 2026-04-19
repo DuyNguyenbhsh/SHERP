@@ -6,6 +6,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  VersionColumn,
 } from 'typeorm';
 import { MasterPlanStatus } from '../enums/master-plan.enum';
 import { WbsNode } from './wbs-node.entity';
@@ -53,6 +54,9 @@ export class MasterPlan {
 
   @OneToMany(() => WbsNode, (n) => n.master_plan)
   wbs_nodes: WbsNode[];
+
+  @VersionColumn({ type: 'int', default: 1 })
+  version: number;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;

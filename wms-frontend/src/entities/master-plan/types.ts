@@ -51,10 +51,12 @@ export interface WbsNode {
   level: number
   node_type: WbsNodeType
   budget_vnd: string
+  sort_order: number
   start_date: string | null
   end_date: string | null
   responsible_employee_id: string | null
   is_archived: boolean
+  version: number
   created_at: string
   updated_at: string
 }
@@ -92,6 +94,15 @@ export interface CreateWbsNodePayload {
   name: string
   level: number
   node_type: WbsNodeType
+  budget_vnd?: string
+  sort_order?: number
+  start_date?: string
+  end_date?: string
+  responsible_employee_id?: string
+}
+
+export interface UpdateWbsNodePayload {
+  name?: string
   budget_vnd?: string
   start_date?: string
   end_date?: string

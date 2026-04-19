@@ -1,11 +1,18 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Loader2, Plus, CalendarClock, Archive } from 'lucide-react'
+import { ArrowLeft, Loader2, Plus, CalendarClock, Archive, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -38,12 +45,19 @@ export function MasterPlanDetailPage(): React.JSX.Element {
   const { data: wbsNodes } = useWbsTree(planId || null)
   const archiveMut = useArchiveWbsNode(planId)
 
-  const [wbsDialog, setWbsDialog] = useState<{ open: boolean; parent?: WbsNode }>({
+  const [wbsDialog, setWbsDialog] = useState<{
+    open: boolean
+    mode: 'create' | 'edit'
+    parent?: WbsNode
+    node?: WbsNode
+  }>({
     open: false,
+    mode: 'create',
   })
   const [tplDialog, setTplDialog] = useState<{ open: boolean; nodeId?: string }>({
     open: false,
   })
+  const [archiveTarget, setArchiveTarget] = useState<WbsNode | null>(null)
 
   if (isLoading || !plan) {
     return (
@@ -53,9 +67,13 @@ export function MasterPlanDetailPage(): React.JSX.Element {
     )
   }
 
-  const handleArchive = (node: WbsNode): void => {
-    archiveMut.mutate(node.id, {
-      onSuccess: () => toast.success(`Đã archive ${node.wbs_code}`),
+  const confirmArchive = (): void => {
+    if (!archiveTarget) return
+    archiveMut.mutate(archiveTarget.id, {
+      onSuccess: () => {
+        toast.success(`Đã archive ${archiveTarget.wbs_code}`)
+        setArchiveTarget(null)
+      },
       onError: (err) => toast.error(getErrorMessage(err, 'Archive thất bại')),
     })
   }
@@ -154,7 +172,7 @@ export function MasterPlanDetailPage(): React.JSX.Element {
               {wbsNodes?.length ?? 0} node · click "Thêm con" để mở rộng
             </p>
             {canManage && (
-              <Button size="sm" onClick={() => setWbsDialog({ open: true })}>
+              <Button size="sm" onClick={() => setWbsDialog({ open: true, mode: 'create' })}>
                 <Plus className="mr-2 h-4 w-4" /> Thêm node gốc
               </Button>
             )}
@@ -200,9 +218,21 @@ export function MasterPlanDetailPage(): React.JSX.Element {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setWbsDialog({ open: true, parent: node })}
+                              onClick={() =>
+                                setWbsDialog({ open: true, mode: 'create', parent: node })
+                              }
+                              disabled={node.level >= 5}
+                              title={node.level >= 5 ? 'Đã đạt level 5' : 'Thêm con'}
                             >
                               <Plus className="mr-1 h-3 w-3" /> Con
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setWbsDialog({ open: true, mode: 'edit', node })}
+                              title="Sửa"
+                            >
+                              <Pencil className="mr-1 h-3 w-3" /> Sửa
                             </Button>
                             <Button
                               size="sm"
@@ -214,7 +244,7 @@ export function MasterPlanDetailPage(): React.JSX.Element {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => handleArchive(node)}
+                              onClick={() => setArchiveTarget(node)}
                               title="Archive"
                             >
                               <Archive className="h-4 w-4" />
@@ -245,11 +275,13 @@ export function MasterPlanDetailPage(): React.JSX.Element {
 
       <WbsNodeFormDialog
         open={wbsDialog.open}
-        onOpenChange={(v) => setWbsDialog({ open: v })}
+        onOpenChange={(v) => setWbsDialog((prev) => ({ ...prev, open: v }))}
         planId={planId}
+        mode={wbsDialog.mode}
         parentCode={wbsDialog.parent?.wbs_code}
         parentId={wbsDialog.parent?.id}
         parentLevel={wbsDialog.parent?.level}
+        node={wbsDialog.node}
       />
       {tplDialog.nodeId && (
         <TaskTemplateFormDialog
@@ -258,6 +290,31 @@ export function MasterPlanDetailPage(): React.JSX.Element {
           wbsNodeId={tplDialog.nodeId}
         />
       )}
+
+      <Dialog open={!!archiveTarget} onOpenChange={(v) => !v && setArchiveTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận archive WBS node</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 text-sm">
+            Archive node <span className="font-mono">{archiveTarget?.wbs_code}</span> —{' '}
+            <strong>{archiveTarget?.name}</strong> và tất cả node con?
+            <br />
+            <span className="text-muted-foreground">
+              Hành động bị chặn nếu còn work_item NEW/IN_PROGRESS trong nhánh.
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setArchiveTarget(null)}>
+              Huỷ
+            </Button>
+            <Button variant="destructive" onClick={confirmArchive} disabled={archiveMut.isPending}>
+              {archiveMut.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Archive
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

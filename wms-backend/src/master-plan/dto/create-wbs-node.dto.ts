@@ -42,10 +42,19 @@ export class CreateWbsNodeDto {
   @IsEnum(WbsNodeType)
   node_type: WbsNodeType;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Bigint VND dạng string (≥0)' })
   @IsOptional()
   @IsString()
+  @Matches(/^\d+$/, {
+    message: 'budget_vnd phải là số nguyên không âm (VND)',
+  })
   budget_vnd?: string;
+
+  @ApiPropertyOptional({ description: 'Thứ tự sắp xếp trong cùng cấp' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  sort_order?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
