@@ -8,5 +8,7 @@ export interface AuthenticatedRequest extends Request {
     privileges: string[];
     contexts: string[];
     role?: string;
+    jti?: string;
+    exp?: number;
   };
 }

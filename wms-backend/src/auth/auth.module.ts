@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { AuthLogService } from './auth-log.service';
 import { MailService } from './mail.service';
 import { JwtStrategy } from './jwt.strategy';
+import { TokenBlocklistService } from './token-blocklist.service';
 
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../users/entities/user-role.entity';
@@ -44,7 +45,13 @@ import { ProjectAssignment } from '../projects/entities/project-assignment.entit
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthLogService, MailService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    AuthLogService,
+    MailService,
+    JwtStrategy,
+    TokenBlocklistService,
+  ],
+  exports: [AuthService, TokenBlocklistService],
 })
 export class AuthModule {}

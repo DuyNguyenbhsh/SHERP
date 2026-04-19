@@ -13,6 +13,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { AuthLogService } from './auth-log.service';
 import { MailService } from './mail.service';
+import { TokenBlocklistService } from './token-blocklist.service';
 import { AuthEvent } from './entities/auth-log.entity';
 import { checkLockout, applyFailedAttempt } from './domain/logic/lockout.logic';
 import { validatePasswordPolicy } from './domain/logic/password-policy.logic';
@@ -39,6 +40,7 @@ export class AuthService {
     private configService: ConfigService,
     private authLogService: AuthLogService,
     private mailService: MailService,
+    private tokenBlocklist: TokenBlocklistService,
   ) {}
 
   // ─── LOGIN (có Lockout + Audit Log + Refresh Token) ──────────────
@@ -138,11 +140,12 @@ export class AuthService {
       user.id,
     );
 
-    // 7. Tạo Access Token (15 phút)
+    // 7. Tạo Access Token (15 phút) — kèm jti cho blocklist
     const payload = {
       sub: user.id,
       username: user.username,
       privileges: privilegeCodes,
+      jti: crypto.randomUUID(),
     };
     const access_token = this.jwtService.sign(payload);
 
@@ -239,6 +242,7 @@ export class AuthService {
       sub: user.id,
       username: user.username,
       privileges: privilegeCodes,
+      jti: crypto.randomUUID(),
     };
     const access_token = this.jwtService.sign(payload);
 
@@ -281,6 +285,8 @@ export class AuthService {
     refreshToken?: string,
     ip?: string,
     userAgent?: string,
+    accessJti?: string,
+    accessExp?: number,
   ) {
     if (refreshToken) {
       const tokenHash = crypto
@@ -291,6 +297,11 @@ export class AuthService {
         { token_hash: tokenHash, user_id: userId },
         { is_revoked: true },
       );
+    }
+
+    // Revoke access token ngay lập tức qua Redis blocklist
+    if (accessJti && accessExp) {
+      await this.tokenBlocklist.revoke(accessJti, accessExp);
     }
 
     await this.authLogService.log({

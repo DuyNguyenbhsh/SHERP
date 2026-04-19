@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
 import { AuthService } from './auth.service';
+import { TokenBlocklistService } from './token-blocklist.service';
 import { AuthLogService } from './auth-log.service';
 import { MailService } from './mail.service';
 import { User } from '../users/entities/user.entity';
@@ -83,6 +84,13 @@ describe('AuthService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AuthLogService, useValue: mockAuthLogService },
         { provide: MailService, useValue: mockMailService },
+        {
+          provide: TokenBlocklistService,
+          useValue: {
+            revoke: jest.fn(),
+            isRevoked: jest.fn().mockResolvedValue(false),
+          },
+        },
       ],
     }).compile();
 

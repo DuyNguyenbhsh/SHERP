@@ -126,7 +126,14 @@ export class AuthController {
     const ip = req.ip || req.socket?.remoteAddress;
     const userAgent = req.headers['user-agent'];
 
-    await this.authService.logout(req.user.userId, refreshToken, ip, userAgent);
+    await this.authService.logout(
+      req.user.userId,
+      refreshToken,
+      ip,
+      userAgent,
+      req.user.jti,
+      req.user.exp,
+    );
 
     // Xoá cookie
     res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
