@@ -110,6 +110,34 @@ const sections: NavSection[] = [
     ],
   },
   {
+    title: 'Master Plan',
+    defaultOpen: true,
+    items: [
+      {
+        label: 'Danh sách Master Plan',
+        path: '/master-plan',
+        icon: <ListChecks className="h-4 w-4" />,
+      },
+      {
+        label: 'Công việc của tôi',
+        path: '/work-items/feed',
+        icon: <ClipboardCheck className="h-4 w-4" />,
+      },
+      { label: 'Sự cố', path: '/incidents', icon: <FileSearch className="h-4 w-4" /> },
+      { label: 'Office Task', path: '/office-tasks', icon: <ListChecks className="h-4 w-4" /> },
+      {
+        label: 'Checklist Template',
+        path: '/checklist-templates',
+        icon: <ClipboardCheck className="h-4 w-4" />,
+      },
+      {
+        label: 'Đồng hồ năng lượng',
+        path: '/energy-meters',
+        icon: <Database className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
     title: 'Quản lý Tài liệu',
     defaultOpen: true,
     items: [

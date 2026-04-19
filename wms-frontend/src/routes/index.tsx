@@ -70,6 +70,32 @@ const CashManagementPage = lazy(() =>
 const EmployeesPage = lazy(() =>
   import('@/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })),
 )
+const MasterPlanListPage = lazy(() =>
+  import('@/pages/MasterPlanListPage').then((m) => ({ default: m.MasterPlanListPage })),
+)
+const MasterPlanDetailPage = lazy(() =>
+  import('@/pages/MasterPlanDetailPage').then((m) => ({ default: m.MasterPlanDetailPage })),
+)
+const WorkItemsFeedPage = lazy(() =>
+  import('@/pages/WorkItemsFeedPage').then((m) => ({ default: m.WorkItemsFeedPage })),
+)
+const WorkItemDetailPage = lazy(() =>
+  import('@/pages/WorkItemDetailPage').then((m) => ({ default: m.WorkItemDetailPage })),
+)
+const IncidentsPage = lazy(() =>
+  import('@/pages/IncidentsPage').then((m) => ({ default: m.IncidentsPage })),
+)
+const OfficeTasksPage = lazy(() =>
+  import('@/pages/OfficeTasksPage').then((m) => ({ default: m.OfficeTasksPage })),
+)
+const ChecklistTemplatesPage = lazy(() =>
+  import('@/pages/ChecklistTemplatesPage').then((m) => ({
+    default: m.ChecklistTemplatesPage,
+  })),
+)
+const EnergyMetersPage = lazy(() =>
+  import('@/pages/EnergyMetersPage').then((m) => ({ default: m.EnergyMetersPage })),
+)
 const UsersPage = lazy(() => import('@/pages/UsersPage').then((m) => ({ default: m.UsersPage })))
 const RolesPage = lazy(() => import('@/pages/RolesPage').then((m) => ({ default: m.RolesPage })))
 const ProjectRequestsPage = lazy(() =>
@@ -151,6 +177,15 @@ export const router = createBrowserRouter([
           { path: 'finance/ar', element: withSuspense(AccountsReceivablePage) },
           { path: 'finance/ap', element: withSuspense(AccountsPayablePage) },
           { path: 'finance/cash', element: withSuspense(CashManagementPage) },
+          // Master Plan
+          { path: 'master-plan', element: withSuspense(MasterPlanListPage) },
+          { path: 'master-plan/:id', element: withSuspense(MasterPlanDetailPage) },
+          { path: 'work-items/feed', element: withSuspense(WorkItemsFeedPage) },
+          { path: 'work-items/:id', element: withSuspense(WorkItemDetailPage) },
+          { path: 'incidents', element: withSuspense(IncidentsPage) },
+          { path: 'office-tasks', element: withSuspense(OfficeTasksPage) },
+          { path: 'checklist-templates', element: withSuspense(ChecklistTemplatesPage) },
+          { path: 'energy-meters', element: withSuspense(EnergyMetersPage) },
           // Nội bộ & Hệ thống
           { path: 'hrm/employees', element: withSuspense(EmployeesPage) },
           { path: 'system/users', element: withSuspense(UsersPage) },
