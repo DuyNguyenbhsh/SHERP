@@ -32,11 +32,23 @@ import { ProjectScheduleModule } from './project-schedule/project-schedule.modul
 import { CustomersModule } from './customers/customers.module';
 import { SalesModule } from './sales/sales.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
+import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD } from '@nestjs/core';
+import type Redis from 'ioredis';
 import { SharedModule } from './shared/shared.module';
+import { RedisModule, IOREDIS, buildRedisOptions } from './shared/redis';
 import { AuditModule } from './common/audit/audit.module';
+import { NotificationModule } from './common/notifications/notification.module';
 import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { UploadModule } from './upload/upload.module';
+import { ReportsExportModule } from './queues/reports-export/reports-export.module';
+import { WorkItemsModule } from './work-items/work-items.module';
+import { MasterPlanModule } from './master-plan/master-plan.module';
+import { ChecklistsModule } from './checklists/checklists.module';
+import { IncidentsModule } from './incidents/incidents.module';
+import { OfficeTasksModule } from './office-tasks/office-tasks.module';
+import { EnergyInspectionModule } from './energy-inspection/energy-inspection.module';
 
 @Module({
   imports: [
@@ -67,19 +79,32 @@ import { UploadModule } from './upload/upload.module';
         ssl: true, // Bắt buộc khi dùng Neon
       }),
     }),
-    // ── RATE LIMITING ──
-    ThrottlerModule.forRoot([
-      {
-        name: 'default',
-        ttl: 60000,
-        limit: 100,
-      },
-      {
-        name: 'auth',
-        ttl: 60000,
-        limit: 5,
-      },
-    ]),
+    // ── REDIS (Global) — cache, queue, throttler storage, JWT blocklist ──
+    RedisModule,
+
+    // ── RATE LIMITING (storage: Redis để đồng bộ khi scale nhiều instance) ──
+    ThrottlerModule.forRootAsync({
+      imports: [RedisModule],
+      inject: [IOREDIS],
+      useFactory: (redis: Redis) => ({
+        throttlers: [
+          { name: 'default', ttl: 60000, limit: 100 },
+          { name: 'auth', ttl: 60000, limit: 5 },
+        ],
+        storage: new ThrottlerStorageRedisService(redis),
+      }),
+    }),
+
+    // ── BULLMQ (Queue) — cần maxRetriesPerRequest: null ở connection ──
+    // Lưu ý Upstash Free: BullMQ polling tốn nhiều command — chỉ bật khi cần
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: buildRedisOptions(config),
+        prefix: `sherp:${config.get<string>('NODE_ENV') || 'development'}:bull`,
+      }),
+    }),
     AuthModule,
     InventoryModule,
     InboundModule,
@@ -107,8 +132,16 @@ import { UploadModule } from './upload/upload.module';
     SalesModule,
     SharedModule,
     AuditModule,
+    NotificationModule,
     SystemSettingsModule,
     UploadModule,
+    ReportsExportModule,
+    WorkItemsModule,
+    MasterPlanModule,
+    ChecklistsModule,
+    IncidentsModule,
+    OfficeTasksModule,
+    EnergyInspectionModule,
   ],
   controllers: [AppController],
   providers: [

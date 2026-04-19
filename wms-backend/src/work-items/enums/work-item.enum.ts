@@ -1,0 +1,12 @@
+export enum WorkItemType {
+  CHECKLIST = 'CHECKLIST',
+  INCIDENT = 'INCIDENT',
+  ENERGY_INSPECTION = 'ENERGY_INSPECTION',
+  OFFICE_TASK = 'OFFICE_TASK',
+}
+
+export enum WorkItemStatus {
+  NEW = 'NEW',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+}

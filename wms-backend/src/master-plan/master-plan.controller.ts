@@ -1,0 +1,142 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PrivilegeGuard } from '../auth/guards/privilege.guard';
+import { RequirePrivilege } from '../auth/decorators/require-privilege.decorator';
+import type { AuthenticatedRequest } from '../auth/types/authenticated-request';
+import { CreateMasterPlanDto } from './dto/create-master-plan.dto';
+import { UpdateMasterPlanDto } from './dto/update-master-plan.dto';
+import { CreateWbsNodeDto } from './dto/create-wbs-node.dto';
+import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
+import { MasterPlanService } from './master-plan.service';
+
+@ApiTags('Master Plan - Cây WBS + recurrence')
+@ApiBearerAuth('bearer')
+@UseGuards(JwtAuthGuard, PrivilegeGuard)
+@Controller('master-plan')
+export class MasterPlanController {
+  constructor(private readonly service: MasterPlanService) {}
+
+  // ── Master Plan ──────────────────────────────────────────
+  @ApiOperation({ summary: 'Tạo Master Plan mới' })
+  @ApiResponse({ status: 201 })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post()
+  create(@Body() dto: CreateMasterPlanDto) {
+    return this.service.create(dto);
+  }
+
+  @ApiOperation({ summary: 'Danh sách Master Plan' })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get()
+  findAll() {
+    return this.service.findAll();
+  }
+
+  @ApiOperation({ summary: 'Chi tiết Master Plan' })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
+
+  @ApiOperation({ summary: 'Cập nhật Master Plan (chỉ DRAFT/ACTIVE)' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateMasterPlanDto) {
+    return this.service.update(id, dto);
+  }
+
+  @ApiOperation({ summary: 'Phê duyệt Master Plan (DRAFT → ACTIVE)' })
+  @RequirePrivilege('APPROVE_MASTER_PLAN')
+  @Post(':id/approve')
+  approve(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.service.approve(id, req.user.userId);
+  }
+
+  @ApiOperation({ summary: 'Đóng Master Plan (stop recurrence)' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post(':id/close')
+  close(@Param('id') id: string) {
+    return this.service.close(id);
+  }
+
+  // ── WBS Node ──────────────────────────────────────────────
+  @ApiOperation({ summary: 'Thêm WBS node vào Master Plan' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post(':planId/wbs-nodes')
+  addWbsNode(@Param('planId') planId: string, @Body() dto: CreateWbsNodeDto) {
+    return this.service.addWbsNode(planId, dto);
+  }
+
+  @ApiOperation({ summary: 'Cây WBS đầy đủ (flat list, sort theo wbs_code)' })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':planId/wbs-tree')
+  getWbsTree(@Param('planId') planId: string) {
+    return this.service.getWbsTree(planId);
+  }
+
+  @ApiOperation({ summary: 'Archive WBS node (soft delete)' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post('wbs-nodes/:id/archive')
+  archiveNode(@Param('id') id: string) {
+    return this.service.archiveWbsNode(id);
+  }
+
+  // ── Task Template ─────────────────────────────────────────
+  @ApiOperation({ summary: 'Gắn Task Template vào WBS node lá' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post('wbs-nodes/:nodeId/task-templates')
+  addTemplate(
+    @Param('nodeId') nodeId: string,
+    @Body() dto: CreateTaskTemplateDto,
+  ) {
+    return this.service.addTaskTemplate(nodeId, dto);
+  }
+
+  @ApiOperation({ summary: 'Preview 10 ngày sinh job kế tiếp từ RRULE' })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Post('task-templates/:id/preview')
+  preview(@Param('id') id: string) {
+    return this.service.previewTaskTemplate(id);
+  }
+
+  // ── Dashboard KPI + Task Templates aggregated ────────────
+  @ApiOperation({ summary: 'KPI dashboard cho 1 plan' })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':planId/dashboard')
+  dashboard(@Param('planId') planId: string) {
+    return this.service.dashboard(planId);
+  }
+
+  @ApiOperation({
+    summary: 'Danh sách Task Template theo plan (aggregated qua WBS)',
+  })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':planId/task-templates')
+  listTemplates(@Param('planId') planId: string) {
+    return this.service.listTaskTemplatesByPlan(planId);
+  }
+
+  // ── Admin: trigger daily scan thủ công ───────────────────
+  @ApiOperation({ summary: '[Admin] Kích hoạt daily scan thủ công (enqueue)' })
+  @RequirePrivilege('MANAGE_MASTER_PLAN')
+  @Post('admin/trigger-daily-scan')
+  triggerScan() {
+    return this.service.triggerDailyScan();
+  }
+}
