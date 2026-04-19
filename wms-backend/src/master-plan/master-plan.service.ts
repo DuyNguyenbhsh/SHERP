@@ -15,6 +15,7 @@ import { CreateWbsNodeDto } from './dto/create-wbs-node.dto';
 import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { MasterPlanStatus } from './enums/master-plan.enum';
 import { nextOccurrences } from './domain/logic/rrule-parser.logic';
+import { validateBudgetRollup } from './domain/logic/budget-rollup.logic';
 import { RecurrenceProducer } from './queues/recurrence.producer';
 
 @Injectable()
@@ -67,7 +68,22 @@ export class MasterPlanService {
         'Chỉ phê duyệt được Master Plan ở trạng thái DRAFT',
       );
     }
-    // TODO Gate 4: gọi BudgetService.checkBudgetLimit() theo dev-rules
+    // BR-MP-04: Validate sum(root WBS node budgets) ≤ plan.budget_vnd.
+    // (ProjectsService.checkBudgetLimit per-category dùng ở tầng procurement/outbound
+    //  khi work item tạo transaction; không apply cho MP annual approve.)
+    const rootNodes = await this.nodeRepo.find({
+      where: { plan_id: id, parent_id: null as unknown as string },
+    });
+    const rollup = validateBudgetRollup(
+      BigInt(plan.budget_vnd),
+      rootNodes.map((n) => BigInt(n.budget_vnd)),
+    );
+    if (!rollup.ok) {
+      throw new BadRequestException(
+        `BR-MP-04: Tổng ngân sách WBS cấp cao nhất (${rollup.childrenSum}) vượt plan.budget_vnd (${plan.budget_vnd}). Vượt: ${rollup.excess}đ`,
+      );
+    }
+
     plan.status = MasterPlanStatus.ACTIVE;
     plan.approved_by = approverUserId;
     plan.approved_at = new Date();

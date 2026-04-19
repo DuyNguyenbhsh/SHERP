@@ -35,7 +35,7 @@ Dependencies dùng chung (loose coupling qua UUID, KHÔNG hard FK xuyên module)
   documents/    — version control ChecklistTemplate (doc tag)
   cloud-storage/— upload ảnh evidence (Cloudinary, limit 10MB/ảnh, max 10/instance)
   shared/audit/ — audit_log reusable
-  BudgetService — checkBudgetLimit() khi approve Master Plan
+  ProjectsService.checkBudgetLimit() — hard-limit per-category khi chi tiêu (không khi approve MP)
 ```
 
 **Nguyên tắc:** Mỗi module con CÓ state machine độc lập nhưng ĐỀU ghi 1 row cha vào `work_items` để render chung "Công việc của tôi" feed. Không ai query 4 bảng con riêng — feed dùng `work_items` + JOIN theo `work_item_type`.
@@ -643,7 +643,7 @@ Tổng: **18 privileges mới**.
 | GET | `/master-plan` | list (paginated, filter project/year/status) | VIEW_MASTER_PLAN | |
 | GET | `/master-plan/:id` | findOne + WBS tree | VIEW_MASTER_PLAN | Query N+1 safe bằng materialized tree |
 | PATCH | `/master-plan/:id` | update | MANAGE_MASTER_PLAN | Block nếu status=ACTIVE cho 1 số field |
-| POST | `/master-plan/:id/approve` | approve → gọi BudgetService.checkBudgetLimit | APPROVE_MASTER_PLAN | BR-MP-02 |
+| POST | `/master-plan/:id/approve` | approve → validate `total_budget ≤ sum(project budgets)` qua `validateBudgetRollup()` pure fn, KHÔNG gọi `ProjectsService.checkBudgetLimit` (đó là per-category chi tiêu) | APPROVE_MASTER_PLAN | BR-MP-02 |
 | POST | `/master-plan/:id/close` | close plan → stop recurrence | MANAGE_MASTER_PLAN | BR-MP-07 |
 | POST | `/master-plan/:id/clone` | clone từ năm trước | MANAGE_MASTER_PLAN | tiện lợi US-MP-01 |
 | **WBS Node** | | | | |
@@ -763,10 +763,14 @@ Tuy nhiên **reuse** `ApprovalStatus` enum từ `approvals/enums/approval.enum.t
 - Mỗi ảnh **≤ 10MB**, **max 10/instance** (tương tự NCR policy hiện hữu).
 - Phase A **bỏ qua** yêu cầu "chụp trực tiếp" (mobile-only trong HDSD) vì web-only — sẽ validate ở Phase B khi có mobile.
 
-### 6.5 `BudgetService.checkBudgetLimit()` (BR-MP-04)
+### 6.5 Budgetary Control (BR-MP-04) — ProjectsService.checkBudgetLimit()
 
-- Khi approve MP → gọi `BudgetService.checkBudgetLimit(plan_id, total_budget)`.
-- Khi tạo/update WbsNode với `budget > 0` → validate sum con ≤ cha bằng `budget-rollup.logic.ts` TRƯỚC khi commit transaction.
+**Reality check 2026-04-19:** Không có `BudgetService` class riêng. Hàm thực là `ProjectsService.checkBudgetLimit(projectId, categoryId, amount, options?)` tại `projects/projects.service.ts:1004` — hoạt động **per-category** (procurement/outbound transaction), không nhận `plan_id`.
+
+**Scope Master Plan (tách biệt):**
+- `MasterPlan.total_budget` là ngân sách tổng annual/facility, **informational**. Khi approve MP: validate `sum(wbs_nodes.budget) ≤ total_budget` qua `validateBudgetRollup()` pure fn (đã có). KHÔNG gọi `checkBudgetLimit`.
+- `WbsNode.budget`: validate sum con ≤ cha bằng `budget-rollup.logic.ts` TRƯỚC khi commit transaction.
+- Hard-limit thực sự enforce ở tầng procurement/outbound (đã có), khi Work Item spawn transaction tài chính — gọi `ProjectsService.checkBudgetLimit()` như các module hiện hữu.
 
 ### 6.6 `employees/` (assignee resolution)
 
@@ -785,7 +789,7 @@ Tuy nhiên **reuse** `ApprovalStatus` enum từ `approvals/enums/approval.enum.t
 
 | Thao tác | Lý do transaction | Rollback khi |
 |---|---|---|
-| `MasterPlan.approve` | approve + updateAudit + BudgetService lock | 1 trong 3 fail |
+| `MasterPlan.approve` | approve + updateAudit + validateBudgetRollup (sum WBS con ≤ total_budget) | 1 trong 3 fail |
 | `WbsNode.archive` | archive + cascade (check no-instance) | có instance đang NEW |
 | `RecurrenceEngine.generate` | insert work_items + insert subject row + update template.last_generated_date | unique violation → skip gracefully (not rollback, đây là idempotent) |
 | `Checklist.recordResult` | insert result + compute status + update work_item.progress_pct + auto-transition to COMPLETED nếu 100% | |
