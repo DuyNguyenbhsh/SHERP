@@ -282,7 +282,7 @@ export class TaskTemplate {
 @Entity('work_items')
 @Index('IDX_WI_PROJECT_DUE_STATUS', ['project_id', 'due_date', 'status'])
 @Index('IDX_WI_ASSIGNEE_STATUS', ['assignee_id', 'status'])
-@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_date'], { unique: true, where: '"task_template_id" IS NOT NULL' })
+@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_at'], { unique: true, where: '"task_template_id" IS NOT NULL' })
 // ↑ idempotency key cho recurrence engine — BR-MP-06
 export class WorkItem {
   @PrimaryGeneratedColumn('uuid') id: string;
@@ -292,7 +292,7 @@ export class WorkItem {
   @Column({ length: 200 }) title: string;
   @Column({ type: 'uuid' }) assignee_id: string;
   @Column({ type: 'uuid', nullable: true }) task_template_id: string;   // null nếu ad-hoc (Incident)
-  @Column({ type: 'date', nullable: true }) scheduled_date: Date;        // idempotency
+  @Column({ type: 'timestamptz', nullable: true }) scheduled_at: Date;   // idempotency (full timestamp — hỗ trợ RRULE BYHOUR=7,14)
   @Column({ type: 'timestamptz' }) due_date: Date;
   @Column({ type: 'enum', enum: WorkItemStatus, default: NEW }) status: WorkItemStatus;
   @Column({ type: 'smallint', default: 0 }) progress_pct: number;        // 0..100
@@ -562,8 +562,8 @@ Tất cả đặt trong `<module>/domain/logic/` — KHÔNG import TypeORM/NestJ
     ▼
 [RecurrenceProcessor.handleGenerate]           # worker concurrency = 8
     │  In single transaction:
-    │    INSERT INTO work_items (task_template_id, scheduled_date=today, ...)
-    │    ON CONFLICT (task_template_id, scheduled_date) DO NOTHING   ← idempotent
+    │    INSERT INTO work_items (task_template_id, scheduled_at=occ, ...)
+    │    ON CONFLICT (task_template_id, scheduled_at) DO NOTHING   ← idempotent
     │    ─▶ if ok: dispatch createSubjectRow(work_item_type) (creates ChecklistInstance / OfficeTask / EnergyInspection)
     │    ─▶ update task_templates.last_generated_date = today
     │
@@ -575,7 +575,7 @@ Tất cả đặt trong `<module>/domain/logic/` — KHÔNG import TypeORM/NestJ
 ### 4.2 Retry & Idempotency
 
 - Bull job options: `attempts: 3, backoff: { type: 'exponential', delay: 5000 }`.
-- Idempotency DB-level: unique index `(task_template_id, scheduled_date)` trên `work_items` → ON CONFLICT DO NOTHING.
+- Idempotency DB-level: unique index `(task_template_id, scheduled_at)` trên `work_items` → ON CONFLICT DO NOTHING.
 - Idempotency job-level: `jobId: "gen-${template_id}-${YYYY-MM-DD}"` — Bull skip duplicate.
 - Failure alert: failed job > 3 attempts → log to `shared/audit` + Slack webhook (optional env `RECURRENCE_ALERT_WEBHOOK`).
 
@@ -656,7 +656,7 @@ Tổng: **18 privileges mới**.
 | POST | `/master-plan/wbs-nodes/:nodeId/task-templates` | attach | MANAGE_MASTER_PLAN | |
 | PATCH | `/master-plan/task-templates/:id` | toggle active, edit recurrence | MANAGE_MASTER_PLAN | |
 | DELETE | `/master-plan/task-templates/:id` | disable | MANAGE_MASTER_PLAN | |
-| POST | `/master-plan/task-templates/:id/preview` | dry-run → list 10 next scheduled_date | MANAGE_MASTER_PLAN | UX helper |
+| POST | `/master-plan/task-templates/:id/preview` | dry-run → list 10 next scheduled_at | MANAGE_MASTER_PLAN | UX helper |
 | **Work Item (polymorphic feed)** | | | | |
 | GET | `/work-items/feed` | daily feed filter (type, status, date range, my) | VIEW_WORK_ITEM | Slide 18-24 |
 | GET | `/work-items/:id` | detail polymorphic (hydrate subject) | VIEW_WORK_ITEM | |
@@ -792,7 +792,7 @@ Tuy nhiên **reuse** `ApprovalStatus` enum từ `approvals/enums/approval.enum.t
 | `Incident.resolve` | update status + insert AFTER_FIX photo ref + notify QLDA | thiếu photo |
 | `Incident.close` | update status=COMPLETED + close work_item | không có AFTER_FIX photo (BR-INC-05) |
 | `Incident.reopen-approve` | approve request + reset incident status=NEW + re-create work_item (cascade) | |
-| `Energy.recordReading` | insert reading + nếu threshold exceeded → insert Incident + link auto_incident_id | |
+| `Energy.recordReading` | insert reading + nếu threshold exceeded AND **chưa có auto-incident OPEN/IN_PROGRESS/RESOLVED cho `meter_id` trong 24h** → insert Incident + link `auto_incident_id`. Ngược lại: chỉ thêm IncidentComment "Threshold tái diễn" vào auto-incident hiện hữu. Cooldown lookup: `SELECT id FROM incidents WHERE related_meter_id=$1 AND status IN (NEW,IN_PROGRESS,RESOLVED) AND created_at >= now() - interval '24 hours' LIMIT 1`. | |
 
 Dùng `DataSource.transaction(async manager => {...})` pattern — không dùng decorator vì khó trace.
 
@@ -807,7 +807,7 @@ Dùng `DataSource.transaction(async manager => {...})` pattern — không dùng 
 - Create enum types: `master_plan_status`, `wbs_node_type`, `work_item_type`, `work_item_status`, `checklist_frequency`, `checklist_result_type`, `checklist_result`, `photo_category`, `incident_severity`, `incident_category`, `incident_status`, `meter_type`, `office_task_priority`, `approval_status` (nếu chưa có).
 - Tạo tables: `master_plans`, `wbs_nodes`, `task_templates`, `work_items`, `checklist_templates`, `checklist_item_templates`, `checklist_instances`, `checklist_item_results`, `incidents`, `incident_photos`, `incident_comments`, `incident_reopen_requests`, `incident_assignee_change_requests`, `energy_meters`, `energy_inspections`, `energy_readings`, `office_tasks`.
 - Index: xem §2.
-- Unique: `work_items(task_template_id, scheduled_date) WHERE task_template_id IS NOT NULL`.
+- Unique: `work_items(task_template_id, scheduled_at) WHERE task_template_id IS NOT NULL`.
 - **KHÔNG** hard FK xuyên module (project_id, customer_id, assignee_id, reported_by = UUID không có REFERENCES).
 
 ### 8.2 `1776300000001-MasterPlanPrivilegesSeed.ts`
@@ -891,7 +891,7 @@ entities/
 | Polymorphic `work_items.subject_id` inconsistent (orphan row) | Query fail khi hydrate | Hard rule: tạo work_item + subject trong CÙNG transaction |
 | Bull Queue backup khi Redis down | Recurrence không sinh instance | Retry + alert webhook; fallback: admin có nút "Run scan now" để force-generate |
 | WBS tree query deep level 5 chậm với 100 template/tòa × 20 tòa = 2000 leaf | Dashboard lag | Recursive CTE với limit depth + materialized view từ năm 2 |
-| Unique constraint (task_template_id, scheduled_date) conflict khi clone plan | Dup key error | clone logic phải set task_template_id=NEW, không share id |
+| Unique constraint (task_template_id, scheduled_at) conflict khi clone plan | Dup key error | clone logic phải set task_template_id=NEW, không share id |
 | Cloudinary free tier block .pdf/.zip (memory note) | Ảnh upload OK vì jpg/png — không impact | — |
 
 ---

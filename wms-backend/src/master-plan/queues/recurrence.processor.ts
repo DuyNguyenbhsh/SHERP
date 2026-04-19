@@ -74,22 +74,28 @@ export class RecurrenceProcessor extends WorkerHost {
     let enqueued = 0;
     const errors: string[] = [];
 
+    // End-of-today UTC (exclusive) — giữ mọi occurrence trong hôm nay bất kể giờ
+    const endOfTodayMs = today.getTime() + 24 * 3600 * 1000;
+
     for (const tpl of templates) {
       try {
         const startFrom = tpl.last_generated_date
           ? new Date(`${tpl.last_generated_date}T00:00:00Z`)
           : today;
         const occurrences = nextOccurrences(tpl.recurrence_rule, startFrom, 40);
+        const lastGenIso = tpl.last_generated_date
+          ? `${tpl.last_generated_date}T00:00:00.000Z`
+          : '';
         const matching = occurrences.filter((d) => {
-          const dIso = d.toISOString().slice(0, 10);
-          return dIso <= todayIso && dIso > (tpl.last_generated_date ?? '');
+          // Giữ mọi occurrence ≤ cuối ngày hôm nay và > mốc đã sinh trước đó
+          if (d.getTime() >= endOfTodayMs) return false;
+          return d.toISOString() > lastGenIso;
         });
 
         for (const occ of matching) {
-          const scheduledDate = occ.toISOString().slice(0, 10);
           await this.producer.enqueueGenerate({
             taskTemplateId: tpl.id,
-            scheduledDate,
+            scheduledAt: occ.toISOString(),
           });
           enqueued++;
         }
@@ -113,19 +119,20 @@ export class RecurrenceProcessor extends WorkerHost {
 
   // ── Generate item: tạo WorkItem + subject row theo type ──
   private async handleGenerate(job: Job<GenerateItemJobData>) {
-    const { taskTemplateId, scheduledDate } = job.data;
+    const { taskTemplateId, scheduledAt } = job.data;
+    const scheduledAtDate = new Date(scheduledAt);
     const workItemRepo = this.dataSource.getRepository(WorkItem);
 
     // Idempotent: check work_item đã tồn tại
     const existing = await workItemRepo.findOne({
       where: {
         task_template_id: taskTemplateId,
-        scheduled_date: scheduledDate,
+        scheduled_at: scheduledAtDate,
       },
     });
     if (existing) {
       this.logger.log(
-        `[generate-item] đã tồn tại, skip: ${taskTemplateId} @ ${scheduledDate}`,
+        `[generate-item] đã tồn tại, skip: ${taskTemplateId} @ ${scheduledAt}`,
       );
       return { status: 'already-exists', workItemId: existing.id };
     }
@@ -152,10 +159,10 @@ export class RecurrenceProcessor extends WorkerHost {
     }
 
     const dueDate = new Date(
-      new Date(`${scheduledDate}T00:00:00Z`).getTime() +
-        tpl.sla_hours * 3600 * 1000,
+      scheduledAtDate.getTime() + tpl.sla_hours * 3600 * 1000,
     );
-    const title = `${tpl.name} - ${scheduledDate}`;
+    const scheduledDateIso = scheduledAt.slice(0, 10); // YYYY-MM-DD cho title + last_generated_date
+    const title = `${tpl.name} - ${scheduledDateIso}`;
 
     return this.dataSource.transaction(async (mgr) => {
       const workItem = mgr.create(WorkItem, {
@@ -163,7 +170,7 @@ export class RecurrenceProcessor extends WorkerHost {
         project_id: plan.project_id,
         assignee_id: assigneeId,
         task_template_id: taskTemplateId,
-        scheduled_date: scheduledDate,
+        scheduled_at: scheduledAtDate,
         due_date: dueDate,
         status: WorkItemStatus.NEW,
         progress_pct: 0,
@@ -207,7 +214,7 @@ export class RecurrenceProcessor extends WorkerHost {
           project_id: plan.project_id,
           work_item_id: savedWi.id,
           assignee_id: assigneeId,
-          inspection_date: scheduledDate,
+          inspection_date: scheduledDateIso,
           due_date: dueDate.toISOString(),
           required_meter_ids: meters.map((m) => m.id),
         });
@@ -222,7 +229,7 @@ export class RecurrenceProcessor extends WorkerHost {
       await mgr.update(
         TaskTemplate,
         { id: taskTemplateId },
-        { last_generated_date: scheduledDate },
+        { last_generated_date: scheduledDateIso },
       );
 
       return { status: 'created', workItemId: savedWi.id, subjectId };

@@ -86,7 +86,7 @@ flowchart LR
 | Actions | icon-menu | – | view / edit / approve / close / clone |
 
 ### State matrix
-- **Loading:** Ant `Table` với `loading={true}` + skeleton 10 rows.
+- **Loading:** shadcn `Table` + `Skeleton` 10 rows (không spinner toàn trang).
 - **Empty:** illustration "Không có Master Plan nào" + nút "Tạo Master Plan đầu tiên" (primary).
 - **Error:** banner đỏ + "Thử lại".
 - **Default:** pagination server-side (pageSize 20, 50, 100), density toggle (Comfortable/Compact).
@@ -117,7 +117,7 @@ flowchart LR
 - Card: Audit trail (last 10 events, link "Xem tất cả").
 
 ### Tab 2: WBS Tree
-- Component: Ant `Tree` kết hợp `Table` (tree-table pattern — expandable rows).
+- Component: shadcn `Table` với expandable rows (tree-table pattern); mỗi row nắm `level` + `parent_id` để render indent. Nếu deep-nest cần thư viện riêng, dùng `react-arborist` nhưng wrap trong `shared/ui/TreeTable` để không leak ra feature.
 - Cột: Mã WBS · Tên node · Type badge · Budget · Progress · Assignee · Actions (+ child, edit, archive).
 - Toolbar: `[+ Thêm node gốc]` · `[Expand all]` · `[Drag to reorder]` (disable ở Phase A).
 - Validate đỏ nếu `sum(children.budget) > parent.budget` — hiển thị icon warning ở node cha.
@@ -129,9 +129,9 @@ flowchart LR
 
 ### Tab 4: Dashboard
 - 2×2 grid:
-  - Progress theo tháng (Ant `Line`)
-  - Phân bố Work Item theo type (donut)
-  - On-time vs Overdue (stacked bar theo tuần)
+  - Progress theo tháng (`recharts.LineChart`)
+  - Phân bố Work Item theo type (`recharts.PieChart` donut style)
+  - On-time vs Overdue (`recharts.BarChart` stacked theo tuần)
   - Top 5 node trễ hạn (bảng nhỏ)
 
 ### Tab 5: Instances
@@ -291,6 +291,48 @@ Gọi `POST /master-plan/task-templates/:id/preview` để lấy.
 
 ---
 
+## 7b. Screen 6b — Incident Sub-flow Approvals (QLDA)
+
+**Route:** `/incidents/approvals` · **Privilege:** `APPROVE_INCIDENT_REOPEN` hoặc `APPROVE_ASSIGNEE_CHANGE`
+
+### Layout
+Tab nội bộ trong page `IncidentsPage`:
+```
+[Sự cố] [Reopen requests] [Assignee change requests]
+```
+
+### Tab "Reopen requests"
+Bảng pending reopen requests (shadcn `Table` + filter status).
+
+| Cột | Kiểu | Ghi chú |
+|---|---|---|
+| Mã sự cố | text | link → detail |
+| Người yêu cầu | avatar+name | – |
+| Lý do | text (clamp 2 dòng) | hover → tooltip full |
+| Thời điểm | relative time | sort desc default |
+| Hành động | `[Duyệt] [Từ chối]` | xác nhận dialog kèm lý do (≥10 ký tự cho reject) |
+
+### Tab "Assignee change requests"
+Giống tab trên + cột `current_assignee → proposed_assignee`.
+
+### Dialog duyệt
+shadcn `Dialog` với body: mã sự cố, lý do user gửi, textarea ghi chú của QLDA (optional cho APPROVE, required ≥10 ký tự cho REJECT). Footer 2 nút `[Hủy]` · `[Xác nhận]`.
+
+### State matrix
+| State | Hiển thị |
+|---|---|
+| Loading | Skeleton 8 rows |
+| Empty | "Không có yêu cầu đang chờ" |
+| Error | Banner + Retry |
+| Default | Paginate server 20/page |
+
+### Privilege guard
+- Tab "Reopen requests" chỉ hiện nếu `APPROVE_INCIDENT_REOPEN`
+- Tab "Assignee change" chỉ hiện nếu `APPROVE_ASSIGNEE_CHANGE`
+- Cả 2 tab ẩn nếu user không có privilege nào — sidebar link cũng ẩn tương ứng.
+
+---
+
 ## 8. Screen 7 — Master Plan Dashboard
 
 **Route:** `/master-plan/:id/dashboard` (alias tab 4) · **Privilege:** `VIEW_MASTER_PLAN`
@@ -334,9 +376,9 @@ Phase A **không hỗ trợ mobile execute** (checklist/incident report).
 
 ## 10. Accessibility (WCAG 2.1 AA)
 
-- Mọi Ant `Button` đã có `aria-label` khi chỉ có icon.
-- `Tree` keyboard: Arrow up/down navigate, Enter expand, Space select.
-- Focus ring: override Ant token `--ant-primary-color-outline`, độ rộng 2px.
+- Mọi shadcn `Button` icon-only PHẢI có `aria-label`.
+- Tree keyboard: Arrow up/down navigate, Enter expand, Space select — do `shared/ui/TreeTable` triển khai.
+- Focus ring: dùng Tailwind token `focus-visible:ring-2 focus-visible:ring-[var(--ring)]`, màu primary, độ rộng 2px (shadcn default, không override).
 - Badge trạng thái: kèm text, không chỉ dùng màu.
 - Form error: `aria-describedby` link message.
 
@@ -345,7 +387,7 @@ Phase A **không hỗ trợ mobile execute** (checklist/incident report).
 ## 11. Checklist trước khi hoàn thành Gate 3
 
 - [x] Design token áp dụng (không hardcode màu/spacing)
-- [x] 7 wireframe cho 7 screen
+- [x] 8 wireframe cho 8 screen (gồm Incident Sub-flow Approvals Screen 6b)
 - [x] State matrix (Loading/Empty/Error/Default) từng screen
 - [x] Đã đối chiếu BA_SPEC — các User Story đều có UI (Master Plan CRUD · WBS · Recurrence · Feed · Detail polymorphic · Dashboard)
 - [x] Đã đối chiếu SA_DESIGN — form field khớp với DTO (`CreateMasterPlanDto`, `CreateWbsNodeDto`, `CreateTaskTemplateDto`)

@@ -33,7 +33,7 @@ export interface WorkItem {
   project_id: string
   assignee_id: string | null
   task_template_id: string | null
-  scheduled_date: string | null
+  scheduled_at: string | null
   due_date: string | null
   status: WorkItemStatus
   progress_pct: number

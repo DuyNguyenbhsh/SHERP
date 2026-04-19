@@ -29,7 +29,7 @@ export class RecurrenceProducer {
 
   async enqueueGenerate(data: GenerateItemJobData): Promise<string> {
     const job = await this.queue.add('generate-item', data, {
-      jobId: `gen-${data.taskTemplateId}-${data.scheduledDate}`, // idempotent
+      jobId: `gen-${data.taskTemplateId}-${data.scheduledAt}`, // idempotent (full ISO)
       removeOnComplete: { age: 24 * 3600, count: 1000 },
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },

@@ -63,7 +63,7 @@ IN_PROGRESS  ──(tất cả item đã COMPLETED)──▶  COMPLETED  (auto-t
 - BR-CHK-01: Item result "Đạt" → BẮT BUỘC tick giá trị (nếu template có `value_unit`)
 - BR-CHK-02: Item require_photo=true → BẮT BUỘC có ít nhất 1 ảnh **chụp trực tiếp** (không upload từ thư viện)
 - BR-CHK-03: Instance auto-transition COMPLETED khi 100% item đã completed — gửi notification cho người tạo + supervisor
-- BR-CHK-04: Hỗ trợ offline — lưu local trên mobile, sync khi có mạng (conflict resolution: last-write-wins per item)
+- BR-CHK-04: **(Phase B — chờ mobile app)** Hỗ trợ offline — lưu local trên mobile, sync khi có mạng (conflict resolution: last-write-wins per item). Phase A web-only KHÔNG hỗ trợ offline (xem §7 Q4).
 - BR-CHK-05: Không cho phép sửa result sau khi instance = COMPLETED (immutable evidence)
 
 ---
@@ -128,7 +128,7 @@ COMPLETED    ──(user request reopen + reason → QLDA duyệt)──▶     
 
 **Business Rules:**
 - BR-ENR-01: Mỗi reading BẮT BUỘC `current_reading >= previous_reading` (nếu < → báo lỗi, có thể do reset meter — cần flag `is_meter_reset: true` để bypass)
-- BR-ENR-02: Delta > threshold × baseline (mặc định 20%) → auto tạo Incident severity = MEDIUM, link tới inspection
+- BR-ENR-02: Delta > threshold × baseline (mặc định 20%) → auto tạo Incident severity = MEDIUM, link tới inspection. **Cooldown bắt buộc:** mỗi `meter_id` chỉ sinh tối đa 1 auto-incident trong 24h; đã có auto-incident OPEN/IN_PROGRESS/RESOLVED cho meter này → skip (chỉ update comment "Threshold vẫn vượt @ timestamp" vào incident hiện hữu). Tránh spam khi meter hỏng hoặc reading liên tục vượt.
 - BR-ENR-03: Phải chụp **ảnh đồng hồ trực tiếp** (anti-fake) — reuse logic ChupHinh từ HDSD
 - BR-ENR-04: Export .docx báo cáo năng lượng (pptx slide 71) — filter: từ-ngày → đến-ngày, dự án, khách hàng, loại năng lượng
 - BR-ENR-05: Meter gắn với `project_id + customer_id` — 1 tòa có thể có nhiều khách thuê, mỗi khách có đồng hồ riêng
@@ -333,6 +333,19 @@ sequenceDiagram
 > **I want to** nhận nhắc nhở mỗi 24h khi task quá hạn,
 > **So that** không quên task văn phòng.
 
+### US-MP-09 — Chia nhỏ công việc (sub-task)
+> **As a** người được giao Work Item lớn,
+> **I want to** tách ra các sub-task con gắn với cùng Work Item cha,
+> **So that** chia việc cho nhiều người hoặc theo dõi tiến độ từng phần.
+
+**AC:**
+- Work Item cha có nút `[+ Sub-task]` trong detail (privilege `EXECUTE_WORK_ITEM` hoặc `MANAGE_MASTER_PLAN`).
+- Sub-task kế thừa `project_id`, `parent_id = cha.id`; có `assignee_id` + `due_date` riêng.
+- Progress cha = avg(sub-task progress) nếu có sub-task, ngược lại dùng logic hiện tại.
+- Đóng cha yêu cầu tất cả sub-task đã COMPLETED (hoặc CANCELED); nếu không → chặn + thông báo danh sách sub-task còn dở.
+- Cha hoặc con đều không được có cấp thứ 3 (giới hạn 1 tầng sub-task cho MVP).
+- Sub-task hiển thị expand/collapse dưới cha trong feed "Công việc của tôi" (slide 24).
+
 ---
 
 ## 4. KPIs & REPORT FIELDS
@@ -345,7 +358,7 @@ sequenceDiagram
 | **On-Time Rate** | `completed_on_time / completed × 100` | Xanh ≥ 95% |
 | **Incident MTTR** | Avg (closed_at - reported_at) | Target < 48h cho MEDIUM |
 | **Energy Anomaly** | Số reading vượt ngưỡng / tháng | Đỏ > 5 |
-| **Budget Variance** | `(spent - planned_ITD) / planned_ITD` | Hard limit ±10% |
+| **Budget Variance** | `planned_ITD > 0 ? (spent - planned_ITD) / planned_ITD : null` (hiển thị `—` nếu null) | Hard limit ±10% khi có ngân sách |
 | **Checklist Pass Rate** | `items_pass / items_total × 100` | Xanh ≥ 98% |
 
 ### 4.2 Report fields bắt buộc (per-WBS drill-down)
@@ -436,7 +449,7 @@ sequenceDiagram
 
 ## 9. CHECKLIST HOÀN THÀNH GATE 1
 
-- [x] User Stories liệt kê đầy đủ (8 stories, cross 4 sub-modules + Master Plan parent)
+- [x] User Stories liệt kê đầy đủ (9 stories — gồm US-MP-09 sub-task)
 - [x] Business Rules rõ ràng (7 BR-MP + 5 BR-CHK + 5 BR-INC + 3 BR-ENR + 2 BR-OFC = 22 BRs)
 - [x] KPI fields xác định (6 KPI dashboard + 10 report fields)
 - [x] Ảnh hưởng Financials đánh giá (Budget hard limit + Labor cost allocation)

@@ -13,7 +13,7 @@ import { WorkItemStatus, WorkItemType } from '../enums/work-item.enum';
 @Entity('work_items')
 @Index('IDX_WI_PROJECT_DUE_STATUS', ['project_id', 'due_date', 'status'])
 @Index('IDX_WI_ASSIGNEE_STATUS', ['assignee_id', 'status'])
-@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_date'], {
+@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_at'], {
   unique: true,
   where: '"task_template_id" IS NOT NULL',
 })
@@ -37,8 +37,8 @@ export class WorkItem {
   @Column({ type: 'uuid', nullable: true })
   task_template_id: string | null;
 
-  @Column({ type: 'date', nullable: true })
-  scheduled_date: string | null;
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  scheduled_at: Date | null;
 
   @Column({ type: 'timestamp with time zone', nullable: true })
   due_date: Date | null;

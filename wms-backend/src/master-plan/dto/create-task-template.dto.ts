@@ -32,7 +32,7 @@ export class CreateTaskTemplateDto {
   @Length(5, 200)
   recurrence_rule: string;
 
-  @ApiProperty({ example: 24, description: 'SLA tính từ scheduled_date (giờ)' })
+  @ApiProperty({ example: 24, description: 'SLA tính từ scheduled_at (giờ)' })
   @IsInt()
   @Min(1)
   @Max(720)

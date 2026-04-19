@@ -99,7 +99,7 @@ export class MasterPlanSchema1776300000000 implements MigrationInterface {
         "project_id" uuid NOT NULL,
         "assignee_id" uuid,
         "task_template_id" uuid,
-        "scheduled_date" date,
+        "scheduled_at" timestamptz,
         "due_date" timestamptz,
         "status" "work_item_status" NOT NULL DEFAULT 'NEW',
         "progress_pct" smallint NOT NULL DEFAULT 0,
@@ -116,7 +116,7 @@ export class MasterPlanSchema1776300000000 implements MigrationInterface {
       CREATE INDEX "IDX_WI_ASSIGNEE_STATUS" ON "work_items" ("assignee_id","status");
     `);
     await queryRunner.query(`
-      CREATE UNIQUE INDEX "IDX_WI_DEDUP" ON "work_items" ("task_template_id","scheduled_date")
+      CREATE UNIQUE INDEX "IDX_WI_DEDUP" ON "work_items" ("task_template_id","scheduled_at")
       WHERE "task_template_id" IS NOT NULL;
     `);
   }
