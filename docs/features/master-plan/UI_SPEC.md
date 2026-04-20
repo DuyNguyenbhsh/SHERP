@@ -396,3 +396,187 @@ Phase A **không hỗ trợ mobile execute** (checklist/incident report).
 - [ ] ⚠ Keyboard navigation test — idem
 
 Sau Gate 4 DEV: phải chạy lại 2 checklist cuối và update status ở đây.
+
+---
+
+## 12. SUPPLEMENT — TEMPLATE THỰC TẾ (2026-04-20)
+
+Cross-reference: BA_SPEC §10, SA_DESIGN §15.
+
+Mục tiêu: wireframe 2 screen mới + tinh chỉnh 2 form hiện tại để khớp format user đang dùng trong `MP Example.xlsx` + `JDHP Master Plan 2024.pdf`.
+
+### 12.1. Screen 8 — Annual Plan Grid (US-MP-13)
+
+**Route:** `/master-plan/:planId/annual-grid?year=2026&lang=vi`
+**Access:** `VIEW_MASTER_PLAN`
+**Mục đích:** Year-at-a-Glance — 1 page xem toàn bộ 48 tuần × N task, giống sheet Excel của user.
+
+**Wireframe**
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ Breadcrumbs: MasterPlan / {planName} / Annual Grid 2026                 [Export] │
+│                                                                                   │
+│ Toolbar:  [Year ▾ 2026] [System filter ▾] [Executor ▾] [VI|EN]  [Print A3]       │
+│                                                                                   │
+│ ╔═══╦═════════╦═══════════╦════════════╦═════════╦══════╦════════ 48 cột ═══════╗│
+│ ║STT║HỆ THỐNG ║HẠNG MỤC   ║CÔNG VIỆC   ║THỰC HIỆN║TẦN   ║Jan        │…│Dec      ║│
+│ ║   ║         ║           ║(VI/EN)     ║         ║SUẤT  ║W1 W2 W3 W4│…│         ║│
+│ ╠═══╬═════════╬═══════════╬════════════╬═════════╬══════╬═══════════════════════╣│
+│ ║ 1 ║PCCC     ║Trạm bơm CC║Kiểm tra    ║IMPC     ║ D    ║D  D  D  D │…│D D D D  ║│
+│ ║   ║(rowspan)║(rowspan)  ║checklist…  ║         ║      ║■  ■  ■  ■ │…│■ ■ ■ ■  ║│
+│ ║ 2 ║         ║           ║Chạy thử bơm║IMPC     ║ W    ║W  W  W  W │…│W W W W  ║│
+│ ║ 3 ║         ║           ║Bảo trì bơm ║CONTRACT.║ Q    ║   Q       │…│   Q     ║│
+│ ║ 4 ║Điện     ║Máy phát   ║Chạy thử    ║IMPC     ║ W    ║           │…│         ║│
+│ ║…  ║         ║           ║            ║         ║      ║           │…│         ║│
+│ ╚═══╩═════════╩═══════════╩════════════╩═════════╩══════╩═══════════════════════╝│
+│                                                                                   │
+│ Legend: Planned (chữ mã) · ■=Done on-time · ▲=Late · ✕=Missed · ◇=Upcoming      │
+│                                                                                   │
+│ Ngày 31/12/2026, Củ Chi — Người lập: Hoàng Anh Tuấn [prepared_by auto]           │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Component spec**
+- Outer shell: `Card` với `CardHeader` (title + Export button).
+- Grid: custom `<AnnualGridTable>` tại `features/master-plan/annual-grid/`. **KHÔNG dùng** `Table` shadcn mặc định vì 48 col sticky header + merge cell hàng trên System/Equipment.
+- Row height: 28px (compact). Touch target 32px cho cell click.
+- Frozen columns: 6 cột đầu (STT → TẦN SUẤT), sticky-left.
+- Frozen row: header row, sticky-top.
+- Cell color scheme (planned):
+  - Nền default `bg-muted/40`, text mã tần suất `font-mono text-xs`.
+- Cell color scheme (actual — khi có work_item tương ứng):
+  - `ON_TIME` → `bg-green-100 dark:bg-green-900/40` + text `text-green-800`
+  - `LATE` → `bg-yellow-100` + text `text-yellow-800`
+  - `MISSED` → `bg-red-100` + text `text-red-800`
+  - `UPCOMING` → `bg-slate-50` + text `text-slate-400`
+- Click cell → Popover hiện list work_item_id (nếu có) + link "Mở chi tiết" (Screen 6).
+- Click row (cột CÔNG VIỆC) → mở TaskTemplate Drawer (Screen 4).
+
+**State matrix**
+| State | UI |
+|---|---|
+| Loading | Skeleton grid 10 row × 8 col placeholder |
+| Empty | Illustration + "Chưa có TaskTemplate nào. Vào tab WBS để thêm." + CTA "Mở WBS Editor" |
+| Error | Alert destructive + nút Retry |
+| Default | Data rendered; header sticky; scroll X cho 48 cột; scroll Y cho list task |
+
+**Interactions**
+- Toolbar `Year` dropdown 2024-2028 → refetch `/annual-grid?year=…`
+- Toolbar `System filter` multi-select → lọc client-side (đã có full data).
+- Toolbar `Executor filter` multi-select IMPC/BW/Tenant/Contractor/Mixed.
+- Toolbar `VI|EN` toggle → chỉ đổi cột CÔNG VIỆC rendering.
+- Button `Export` → GET blob URL + auto download XLSX (file name server set qua `Content-Disposition`).
+- Button `Print A3` → `window.print()` + CSS `@media print` kích hoạt class `print-landscape-a3`.
+
+**Print CSS** (`pages/master-plan/AnnualGridPage.module.css`):
+```css
+@page { size: A3 landscape; margin: 12mm; }
+@media print {
+  .toolbar, .filters, .app-sidebar, .app-masthead { display: none !important; }
+  .annual-grid-table { font-size: 8pt; border: 1px solid #1e2329; }
+  .annual-grid-table th { background: #f5f6f7 !important; -webkit-print-color-adjust: exact; }
+}
+```
+
+### 12.2. Screen 4 (Drawer) — mở rộng TaskTemplate Form
+
+Thêm 6 nhóm field vào drawer hiện tại:
+
+1. **Taxonomy (2 field song song)**
+   - Cascader `system_id → equipment_item_id`. Label "Hệ thống / Hạng mục". Required system_id; equipment_item optional.
+   - Loading skeleton khi fetch catalog.
+
+2. **Bilingual name**
+   - Tab VI / EN trên cùng field group "Tên công việc".
+   - VI required (đã có `name`), EN optional (`name_en`) — placeholder "Tùy chọn — sẽ hiển thị khi user chọn tiếng Anh".
+
+3. **Executor party**
+   - RadioGroup 5 option (INTERNAL / OWNER / TENANT / CONTRACTOR / MIXED) — icon 16px cạnh label.
+   - Khi chọn CONTRACTOR / MIXED → hiển thị TextField `contractor_name` required (BR-MP-08 + validator `ValidateIf`).
+
+4. **Frequency code (mã tắt)**
+   - Select 9 option D/W/BW/M/Q/BiQ/HY/Y/Y_URGENT.
+   - Helper text: "Dùng để hiển thị grid và xuất Excel. Nếu lịch phức tạp hơn, để trống và chỉ dùng RRULE ở dưới."
+   - Khi chọn Y_URGENT → hiển thị checkbox `allow_adhoc_trigger` (mặc định ON, disabled = true đi kèm Y_URGENT).
+
+5. **Regulatory references**
+   - Multi-tag input (shadcn `Command` + `Badge`). Autocomplete gợi ý 8 tag thường gặp (QCVN 02:2020/BCA, TT 17/2021/TT-BCA, TT 149/2020/TT-BCA, TT 02/2022/TT-BTNMT, TCVN 9385:2012, QCVN 14:2008, O&M Manual, …).
+   - Max 10 tag (BR-MP-11 + DTO `ArrayMaxSize`).
+
+6. **Preview card cuối drawer** (disable)
+   - Hiển thị "Row preview" giống cell table: System / Item / Task / Executor / Frequency — giúp user check trước khi Save.
+
+### 12.3. Screen 2 — Master Plan Detail tab "Sign-off" (extend)
+
+Thêm section cuối trang (dưới tab Instances hiện tại):
+
+```
+┌─ Sign-off Information ──────────────────────────────────────────┐
+│ Địa điểm       [ Củ Chi          ▾ ]  (autocomplete từ province)│
+│ Người lập      [ Select employee  ▾ ]                            │
+│ Ngày lập       [ 31/12/2026  📅 ]                                │
+│ Người duyệt    {display only — approved_by.name}                 │
+│ Ngày duyệt     {display only — approved_at}                      │
+│                                                                  │
+│ [Save sign-off]                                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+Section visible với privilege `MANAGE_MASTER_PLAN`. View-only với `VIEW_MASTER_PLAN`.
+
+### 12.4. Screen 9 — Facility Systems Catalog (Admin)
+
+**Route:** `/admin/master-data/facility-systems`
+**Access:** `MANAGE_FACILITY_CATALOG`
+**Mục đích:** Admin CRUD 11 system + 40+ equipment items.
+
+Layout split 2 cột:
+- Left (340px): List System (table). Row chọn highlight, hiển thị số Equipment items con.
+- Right (flex): List Equipment Items của System đã chọn. Inline edit qua `DataTable` + row action menu.
+
+Form fields mỗi entity: `code`, `name_vi`, `name_en`, `sort_order`, `is_active` toggle.
+
+### 12.5. Design Token delta
+
+- **Bilingual divider:** khi bật `lang=en`, tất cả `[lang]` pair hiển thị format `{vi}\n{en}` với `whitespace-pre-line`, font-size `text-xs` cho dòng EN.
+- **Mã frequency badge:** `bg-slate-700 text-white font-mono text-[10px] px-1 rounded` — kích thước nhỏ vừa 24px cell tuần.
+- **Plan vs Actual color**: tuân thủ semantic tokens (success #107e3e, warning #e9730c, error #bb0000) — không hardcode.
+
+### 12.6. Responsive
+
+| Breakpoint | Annual Grid |
+|---|---|
+| ≥ 1280 desktop | Grid full 48 col, scroll X khi cần, sticky 6 col đầu |
+| 768-1279 tablet | Chuyển sang "Monthly tab view" — 1 tháng × 4 tuần/tab, 12 tab chuyển tháng. Reuse cell UI. |
+| < 768 mobile | Read-only list: từng task accordion, expand xem 12 tháng text-only (không grid) |
+
+### 12.7. Accessibility delta
+
+- Grid 48 col: tab order: row → cell theo hàng. Skip link "Chuyển xuống cuối bảng".
+- Cell có work_item: `aria-label="Tuần {iso}, {status}, click để mở chi tiết"`.
+- Filter toolbar: label `aria-labelledby` cho mỗi combobox.
+- Tag multi-input: `aria-describedby` hiển thị số tag đã chọn.
+- Export button: `aria-label="Tải kế hoạch năm {year} dạng Excel"`.
+
+### 12.8. State matrix — Screen 9 (Facility Systems)
+
+| State | UI |
+|---|---|
+| Loading | Left col skeleton 11 row, right col skeleton 6 row |
+| Empty-left | Hiển thị CTA "Seed dữ liệu mẫu 11 hệ thống" (gọi endpoint seed admin) |
+| Empty-right | Khi System chưa có item: Illustration + "Chưa có hạng mục" + CTA "Thêm hạng mục đầu tiên" |
+| Error | Alert destructive + Retry |
+| Default | 2 list active, highlight selected system |
+
+### 12.9. Checklist Gate 3 Supplement
+
+- [x] Wireframe Screen 8 (Annual Grid) với sticky col + print A3
+- [x] Extend Screen 4 TaskTemplate drawer — 6 field groups mới
+- [x] Extend Screen 2 Master Plan Detail — Sign-off section
+- [x] Screen 9 Facility Systems Catalog admin split-pane
+- [x] State matrix đầy đủ 4 state cho Screen 8 + 9
+- [x] Responsive breakpoint (tablet monthly tab, mobile list)
+- [x] A11y: keyboard nav + aria-label grid 48 col
+- [ ] ⚠ Contrast check bằng axe DevTools — chạy sau Gate 4 implement
+- [ ] ⚠ Print preview test trên Chrome/Firefox — chạy sau Gate 4 implement

@@ -471,3 +471,146 @@ sequenceDiagram
 - Bull Queue recurrence engine design (RRULE parser, idempotency key, job retry policy)
 - Migration plan (mapping với NeonDB branching, zero-downtime)
 - Dependency trên modules đã DONE: `projects/`, `approvals/`, `documents/`, `employees/`, `cloud-storage/`
+
+---
+
+## 10. SUPPLEMENT — PHÂN TÍCH 2 TEMPLATE THỰC TẾ (2026-04-20)
+
+**Nguồn:** `docs/reference/docs/MasterPlan/`
+- `MP Example.xlsx` — BW Tân Phú Trung (5 sheet cho 5 nhà xưởng: TPT-1, TPT-3, TPT-4 J&T, TPT-4.1 K2/K3, TPT-4.1 K1-SPX).
+- `JDHP - Master Plan 2024.pdf` — JD Hải Phòng 1 (3 trang, 57 task dòng).
+
+Mục tiêu: đối chiếu template user đang dùng trên Excel → phát hiện 12 gap với BA_SPEC hiện tại (bổ sung, **không ghi đè** US/BR đã approve).
+
+### 10.1. Bảng so sánh cấu trúc cột
+
+| Cột Excel | Ý nghĩa | Có trong model hiện tại? |
+|---|---|---|
+| STT | Số thứ tự | ✓ (`sort_order` đã thêm WBS hardening 2026-04-19) |
+| HỆ THỐNG / SYSTEM | Nhóm hệ thống cấp 1 (PCCC, Cấp thoát nước, Điện, Môi trường, Kết cấu…) | ✗ — phải thêm |
+| HẠNG MỤC / ITEMS | Nhóm thiết bị cấp 2 (Trạm bơm CC, Tủ MSB, Máy phát điện…) | ✗ — phải thêm |
+| CÔNG VIỆC / WORK PERFORMED | Mô tả task bilingual **VI + EN** | ⚠ chỉ có `name` 1 ngôn ngữ |
+| THỰC HIỆN / EXECUTOR | Bên thực hiện (IMPC / BW / Tenant / BW & Tenant / BW-IMPC) | ✗ — phải thêm `executor_party` |
+| TẦN SUẤT / FREQ | Mã D/W/BW/M/Q/BiQ/HY/Y + `Y/Urgent`, `D/Urgent` | ⚠ có `rrule_text` nhưng không lưu mã tắt để in |
+| 48 cột tuần (M1-W1 … M12-W4) | Ô tick "ü" đánh dấu tuần kế hoạch | ✗ — hiện chỉ có scheduled_at từng instance, thiếu **Annual Grid** kế hoạch |
+| GHI CHÚ / NOTES | Trích dẫn quy chuẩn (QCVN, TT-BCA, TT-BTNMT, TCVN) | ✗ — phải thêm `regulatory_refs[]` |
+
+Template JDHP khác xlsx ở chỗ: **mỗi dòng task gồm 2 row "Kế hoạch" vs "Thực tế"** — gap analysis view (xem 10.4).
+
+### 10.2. Bổ sung User Stories (US-MP-10 → US-MP-14)
+
+**US-MP-10 — Taxonomy Hệ thống / Hạng mục**
+Là QLDA / IMPC Manager, tôi cần gán mỗi TaskTemplate vào một cặp (System, EquipmentItem) để in báo cáo gom nhóm đúng format O&M truyền thống.
+- Acceptance: 2 master-data list (`facility_systems`, `facility_equipment_items`) admin CRUD; combo lồng Cascader ở TaskTemplate form; filter Annual Grid theo System.
+
+**US-MP-11 — Bilingual Task Name**
+Là user vận hành tòa nhà có khách thuê nước ngoài (J&T, Shopee Express, BestTurn), tôi cần mỗi task ghi song ngữ VI/EN để báo cáo cho Tenant / Board đọc được.
+- Acceptance: Entity TaskTemplate thêm `name_en text`, checklist templates tương tự; UI hiển thị tuỳ theo locale user (VI mặc định, EN toggle).
+
+**US-MP-12 — Executor Party (Bên thực hiện)**
+Là QLDA, tôi cần đánh dấu mỗi task do **bên nào** làm (Nội bộ IMPC / Chủ đầu tư BW / Khách thuê Tenant / Nhà thầu độc lập) để phân công, tính công và đối soát chi phí.
+- Acceptance: enum `ExecutorParty { INTERNAL, OWNER, TENANT, CONTRACTOR, MIXED }` + optional `contractor_name` text; lọc Annual Grid theo executor; báo cáo "Task do IMPC vs Outsource".
+
+**US-MP-13 — Annual Plan Grid (Year-at-a-Glance)**
+Là QLDA, tôi cần 1 trang **grid 12 tháng × 4 tuần = 48 ô** cho từng TaskTemplate để xem/print kế hoạch cả năm giống Excel — vừa làm biên bản ký duyệt đầu năm, vừa phục vụ audit của Chủ đầu tư.
+- Acceptance:
+  - Row: từng TaskTemplate gom theo (System → Equipment → Task).
+  - Column: 48 cột tuần (ISO week number trong năm).
+  - Cell planned: hiện mã frequency (D/W/M/Q/HY/Y).
+  - Cell actual (khi Phase B toggle): màu nền theo trạng thái instance (đúng hạn / trễ / bỏ lỡ / chưa tới).
+  - Export XLSX giữ nguyên layout 48 cột + header bilingual + vùng ký tên.
+  - Print A3 landscape, khổ Excel.
+
+**US-MP-14 — Regulatory Compliance Notes**
+Là QLDA, tôi cần ghi rõ mỗi task áp dụng theo văn bản pháp luật nào (QCVN 02:2020/BCA, TT 17/2021/TT-BCA, TT 149/2020/TT-BCA, TT 02/2022/TT-BTNMT, TCVN 9385:2012, QCVN 14:2008…) để khi audit trình ra được căn cứ.
+- Acceptance: Field `regulatory_refs jsonb[]` trên TaskTemplate; UI input multi-tag với gợi ý từ master list; cột "Ghi chú" trên Annual Grid & export xlsx.
+
+### 10.3. Bổ sung Business Rules
+
+| ID | Rule | Rationale từ template |
+|---|---|---|
+| BR-MP-08 | Mỗi TaskTemplate BẮT BUỘC có `executor_party` NOT NULL. | Cột "THỰC HIỆN" luôn có giá trị trong mọi dòng xlsx, không bỏ trống. |
+| BR-MP-09 | Khi `executor_party = CONTRACTOR` hoặc `MIXED` và có contractor_name → WorkItem sinh ra gán `responsible_employee_id = NULL` và hiển thị "Ngoại bộ — {contractor_name}". | Nhiều dòng "Bởi nhà thầu độc lập" trong notes. |
+| BR-MP-10 | Frequency code `Y/Urgent` = planned yearly RRULE **cộng thêm** flag `allow_adhoc_trigger = true` → cho phép tạo instance ngoài lịch qua Incident escalation. | "Y/Urgent" trong PDF dòng 27, 29 — ngụ ý có thể phát sinh đột xuất. |
+| BR-MP-11 | Mỗi TaskTemplate có thể liên kết nhiều `regulatory_refs[]` (tự do text); export PDF/XLSX phải in ra cột Ghi chú. | Cột GHI CHÚ trong xlsx dày đặc căn cứ pháp lý. |
+| BR-MP-12 | Khi bilingual `name_en` rỗng → UI fallback `name` (VI); **không** chặn lưu. | Phần lớn dòng có EN, nhưng legacy data có thể thiếu. |
+| BR-MP-13 | Annual Grid render **instance planned** từ RRULE expand (Jan 1 → Dec 31 năm xem) — không phụ thuộc cron đã sinh hay chưa. **Actual** lấy từ work_items.status đã phát sinh thật. | JDHP pdf render planned row từ rule, actual row trống chờ đánh. |
+| BR-MP-14 | Template library: 1 `MasterPlanTemplate` cấp Organization có thể clone sang nhiều MasterPlan (per building/project). Clone = deep copy WBS + TaskTemplate, giữ bilingual + executor + compliance refs. | 5 sheet TPT chia sẻ ~80% cấu trúc, user đang copy-paste thủ công. |
+
+### 10.4. Plan vs Actual Gap View (KPI mới)
+
+**KPI-MP-08 — Compliance Completion Ratio** = (số instance Y-status ∈ {DONE, DONE_LATE} trong năm) / (số instance planned trong năm) × 100%, group by (System, ExecutorParty).
+
+**KPI-MP-09 — On-Time Rate per System** = 4 ngưỡng SLA:
+- D-task: hoàn thành trong ngày;
+- W-task: trong tuần ISO;
+- M-task: trong tháng;
+- Q/HY/Y: trong chu kỳ (tính theo due_date khi instance sinh ra).
+
+Report field: `(year, system, equipment_item, executor_party, freq_code, planned_count, actual_done, actual_late, actual_missed)` — xuất XLSX cho audit quý.
+
+### 10.5. Enum Frequency Code (mã tắt cho in/xuất)
+
+Bảng đối chiếu RRULE ↔ Mã tắt (lưu `freq_code text` trên TaskTemplate để render Annual Grid & export nhanh mà không phải re-parse RRULE mỗi lần):
+
+| Mã | Nghĩa | RRULE mẫu |
+|---|---|---|
+| D | Daily | `FREQ=DAILY` |
+| W | Weekly | `FREQ=WEEKLY;BYDAY=MO` |
+| BW | Biweekly | `FREQ=WEEKLY;INTERVAL=2` |
+| M | Monthly | `FREQ=MONTHLY;BYMONTHDAY=1` |
+| Q | Quarterly | `FREQ=MONTHLY;INTERVAL=3` |
+| BiQ | Bi-quarterly (4 tháng) | `FREQ=MONTHLY;INTERVAL=4` |
+| HY | Half-yearly | `FREQ=MONTHLY;INTERVAL=6` |
+| Y | Yearly | `FREQ=YEARLY` |
+| Y/Urgent | Yearly + ad-hoc | `FREQ=YEARLY` + `allow_adhoc_trigger=true` |
+
+### 10.6. Taxonomy tham chiếu (facility_systems catalog seed)
+
+Từ 2 template suy ra seed ban đầu 11 hệ thống + 40+ hạng mục. Xem SA_DESIGN §15 để có migration `1776300000010-FacilitySystemsSeed`.
+
+**11 System nhóm mức 1:**
+1. Hệ thống PCCC & Báo cháy
+2. Hệ thống cấp thoát nước
+3. Chống sét
+4. Hệ thống điện
+5. Máy phát điện
+6. Chiếu sáng & đèn khẩn cấp
+7. Hệ thống thông gió & hút khói
+8. Cửa cuốn & Dock leveler
+9. Camera quan sát & Âm thanh (PA)
+10. Kết cấu & Cơ sở hạ tầng
+11. Môi trường & Quản lý năng lượng
+
+### 10.7. Sign-off Metadata (mới)
+
+Xlsx có dòng cuối: "Củ Chi, Ngày 31/12/2024 — Người lập: Hoàng Anh Tuấn". → thêm vào MasterPlan:
+- `prepared_by employee_id`
+- `prepared_at date`
+- `location_label text` (VD "Củ Chi")
+- `approved_by employee_id` (đã có từ ngày trước)
+- `approved_at timestamptz`
+
+Export XLSX generator render đúng 2 dòng ký tên cuối cùng.
+
+### 10.8. Scope impact lên Phase A MVP
+
+| Item | Phase A? | Ghi chú |
+|---|---|---|
+| US-MP-10 Taxonomy | ✓ bắt buộc (seed 11 system) | Blocker cho export xlsx đúng format |
+| US-MP-11 Bilingual | ✓ | Field optional, không chặn luồng |
+| US-MP-12 Executor | ✓ bắt buộc | BR-MP-08 |
+| US-MP-13 Annual Grid | ✓ (view only, chưa edit cell) | Cell edit drag-drop → Phase B |
+| US-MP-14 Regulatory | ✓ | Field text đơn giản |
+| Export XLSX | ✓ (MVP — format 48 cột) | Dùng `exceljs`, A3 landscape |
+| Template library clone | ⚠ Phase B | Phase A user nhập thủ công từng MP |
+| Plan vs Actual KPI dashboard | ⚠ Phase B | Phase A chỉ hiển thị instance feed |
+
+### 10.9. Checklist bổ sung Gate 1
+
+- [x] Đối chiếu cột template thực tế (xlsx + pdf) với model hiện tại → liệt kê 12 gap
+- [x] 5 US mới (US-MP-10 → 14)
+- [x] 7 BR mới (BR-MP-08 → 14)
+- [x] 2 KPI mới (KPI-MP-08, 09) + enum freq_code
+- [x] Seed 11 facility systems — đưa vào SA migration kế tiếp
+- [x] Sign-off metadata (prepared_by, location_label)

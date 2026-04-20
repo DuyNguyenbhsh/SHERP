@@ -943,3 +943,237 @@ entities/
 - B11: Frontend entities + pages (Phase A web)
 
 Ước tính Gate 3: **8-10 phiên làm việc** (giống Sales module scale).
+
+---
+
+## 15. SUPPLEMENT — TEMPLATE THỰC TẾ (2026-04-20)
+
+Cross-reference: BA_SPEC §10 (US-MP-10 → 14, BR-MP-08 → 14).
+
+### 15.1. Entity thay đổi (delta lên schema hiện tại)
+
+#### 15.1.1. `facility_systems` (MỚI — master data)
+
+```
+id              uuid PK
+code            varchar(32) UNIQUE NOT NULL          -- FS_FIRE / FS_WATER …
+name_vi         varchar(200) NOT NULL
+name_en         varchar(200)
+sort_order      int DEFAULT 0
+is_active       bool DEFAULT true
+created_at/updated_at
+```
+IDX: `IDX_FS_ACTIVE` (is_active, sort_order)
+
+#### 15.1.2. `facility_equipment_items` (MỚI — master data con)
+
+```
+id              uuid PK
+system_id       uuid NOT NULL REFERENCES facility_systems(id) ON DELETE RESTRICT
+code            varchar(32) UNIQUE
+name_vi         varchar(200) NOT NULL
+name_en         varchar(200)
+sort_order      int DEFAULT 0
+is_active       bool DEFAULT true
+```
+IDX: `IDX_FEI_SYSTEM` (system_id, sort_order)
+
+#### 15.1.3. `task_templates` (EXTEND — thêm 6 cột)
+
+```
++ name_en                 varchar(500) NULL          -- bilingual (BR-MP-12 fallback)
++ system_id               uuid NULL REFERENCES facility_systems(id) ON DELETE SET NULL
++ equipment_item_id       uuid NULL REFERENCES facility_equipment_items(id) ON DELETE SET NULL
++ executor_party          task_executor_party NOT NULL DEFAULT 'INTERNAL'
++ contractor_name         varchar(255) NULL          -- khi executor_party IN (CONTRACTOR, MIXED)
++ freq_code               varchar(16) NULL           -- D/W/BW/M/Q/BiQ/HY/Y/Y_URGENT (BR-MP-10)
++ regulatory_refs         jsonb NOT NULL DEFAULT '[]'::jsonb   -- array string
++ allow_adhoc_trigger     bool NOT NULL DEFAULT false          -- BR-MP-10 Y/Urgent
+```
+IDX:
+- `IDX_TT_SYSTEM` (system_id)
+- `IDX_TT_EXECUTOR` (executor_party)
+- `IDX_TT_FREQ` (freq_code) — dùng cho report group-by
+
+CHECK:
+- `CK_TT_CONTRACTOR_NAME`: `executor_party IN ('CONTRACTOR','MIXED')` ⇒ `contractor_name IS NOT NULL`
+- `CK_TT_FREQ_CODE`: `freq_code IN ('D','W','BW','M','Q','BiQ','HY','Y','Y_URGENT')` hoặc NULL
+
+#### 15.1.4. Enum mới `task_executor_party`
+
+```
+CREATE TYPE task_executor_party AS ENUM (
+  'INTERNAL',    -- IMPC tự làm
+  'OWNER',       -- BW (chủ đầu tư)
+  'TENANT',      -- khách thuê
+  'CONTRACTOR',  -- nhà thầu độc lập
+  'MIXED'        -- đồng thực hiện (BW & Tenant, BW/IMPC)
+);
+```
+
+#### 15.1.5. `master_plans` (EXTEND — thêm 3 cột sign-off)
+
+```
++ prepared_by_id   uuid NULL REFERENCES employees(id) ON DELETE SET NULL
++ prepared_at      date NULL
++ location_label   varchar(120) NULL            -- "Củ Chi", "Hải Phòng"
+```
+
+#### 15.1.6. `master_plan_templates` (MỚI — US-MP-14, Phase B)
+
+```
+id                   uuid PK
+organization_id      uuid NOT NULL REFERENCES organizations(id)
+name                 varchar(200) NOT NULL
+description          text
+is_active            bool DEFAULT true
+created_by_id        uuid NOT NULL
+created_at/updated_at
+```
+
+`wbs_nodes` + `task_templates` reuse bằng cột `template_id uuid NULL` — khi template_id khác NULL nghĩa là row này thuộc master template (chưa thuộc plan thật). `POST /master-plan/clone-from-template/:templateId` thực hiện deep copy.
+
+> Phase A defer bảng này — chỉ scaffold migration skeleton.
+
+### 15.2. DTO mới
+
+```ts
+// create-task-template.dto.ts — bổ sung
+@IsOptional() @IsString() @MaxLength(500)
+name_en?: string;
+
+@IsOptional() @IsUUID()
+system_id?: string;
+
+@IsOptional() @IsUUID()
+equipment_item_id?: string;
+
+@IsEnum(ExecutorParty)
+executor_party: ExecutorParty;
+
+@ValidateIf(o => [ExecutorParty.CONTRACTOR, ExecutorParty.MIXED].includes(o.executor_party))
+@IsString() @IsNotEmpty() @MaxLength(255)
+contractor_name?: string;
+
+@IsOptional() @IsIn(['D','W','BW','M','Q','BiQ','HY','Y','Y_URGENT'])
+freq_code?: string;
+
+@IsOptional() @IsArray() @ArrayMaxSize(10)
+@IsString({ each: true }) @MaxLength(200, { each: true })
+regulatory_refs?: string[];
+
+@IsOptional() @IsBoolean()
+allow_adhoc_trigger?: boolean;
+```
+
+### 15.3. Endpoints mới
+
+| Method | Path | Privilege | Mô tả |
+|---|---|---|---|
+| GET | `/master-data/facility-systems` | — (auth) | List system catalog |
+| POST | `/master-data/facility-systems` | `MANAGE_MASTER_DATA` | Create |
+| GET | `/master-data/facility-equipment-items?system_id=…` | — | List nested |
+| POST | `/master-data/facility-equipment-items` | `MANAGE_MASTER_DATA` | Create |
+| GET | `/master-plan/:planId/annual-grid?year=2026` | `VIEW_MASTER_PLAN` | Trả về matrix planned (RRULE expand) + actual (work_items status). Schema xem §15.4 |
+| GET | `/master-plan/:planId/export-xlsx?year=2026&lang=vi` | `VIEW_MASTER_PLAN` | Response `application/vnd.openxmlformats-…`, file name `MasterPlan_{planCode}_{year}.xlsx` |
+| POST | `/master-plan/templates/clone` body `{ templateId, planName, projectId, year }` | `MANAGE_MASTER_PLAN` | Phase B |
+
+### 15.4. Response shape Annual Grid
+
+```ts
+interface AnnualGridResponse {
+  year: number;                     // 2026
+  plan_id: string;
+  weeks: { iso_week: number; start: string; end: string }[];  // length 52 or 53
+  rows: Array<{
+    task_template_id: string;
+    system: { id: string; name_vi: string; name_en: string };
+    equipment_item: { id: string; name_vi: string; name_en: string } | null;
+    task_name_vi: string;
+    task_name_en: string | null;
+    executor_party: ExecutorParty;
+    contractor_name: string | null;
+    freq_code: string | null;
+    regulatory_refs: string[];
+    cells: Array<{
+      iso_week: number;
+      planned: boolean;              // RRULE chứa tuần này?
+      actual_status: 'NONE' | 'ON_TIME' | 'LATE' | 'MISSED' | 'UPCOMING';
+      instance_ids: string[];        // work_items trong tuần
+    }>;
+  }>;
+}
+```
+
+### 15.5. Service: `AnnualGridService`
+
+Thuộc `src/master-plan/annual-grid.service.ts`. Dependencies inject:
+- `TaskTemplateRepository`, `WorkItemRepository`
+- `RrulesetBuilder` (pure function tại `domain/logic/rrule-expand.ts`)
+
+Algorithm:
+1. Load all TaskTemplate thuộc plan (via WBS tree, deep).
+2. Với mỗi template: gọi `expandRruleToIsoWeeks(rrule_text, year)` → set `planned_weeks`.
+3. Query `work_items` WHERE plan_id + year range → group by (template_id, iso_week).
+4. Render matrix theo §15.4.
+
+Complexity: O(templates × 52). Với 2000 templates × 52 = 104K cells, trả về ~4 MB JSON. Phase A acceptable. Phase B → server-side paginate theo System.
+
+### 15.6. Export XLSX generator
+
+Thư viện: `exceljs@4.4.0` (đã stable, BSD-3).
+
+Layout sheet (khớp format user):
+- Row 1-3: Title merged cells — "KẾ HOẠCH VẬN HÀNH BẢO TRÌ / OPERATION & MAINTENANCE PLAN — NĂM: {year} — DỰ ÁN: {project_name}".
+- Row 4: Header bilingual (STT | HỆ THỐNG | HẠNG MỤC | CÔNG VIỆC | THỰC HIỆN | TẦN SUẤT | Jan-W1 … Dec-W4 | GHI CHÚ).
+- Row 5-N: data rows. Merge cell cho cột System/Equipment khi nhiều task cùng group.
+- Cell tuần planned: ghi mã `freq_code` (D/W/M/Q/HY/Y). Cell actual: tô màu (xanh ON_TIME, vàng LATE, đỏ MISSED, xám UPCOMING).
+- Row N+1: "Ngày {prepared_at}, {location_label} — Người lập: {prepared_by.name}".
+- Print settings: landscape A3, fit width, gridlines ON, freeze pane row 4 / col F.
+
+### 15.7. Migration plan bổ sung
+
+| # | Migration | Mô tả |
+|---|---|---|
+| `1776300000010` | `FacilitySystemsCatalog` | 2 bảng `facility_systems` + `facility_equipment_items` + enum `task_executor_party` + seed 11 system + 40 equipment items. |
+| `1776300000011` | `TaskTemplateBilingualExecutor` | ALTER task_templates thêm 8 cột (§15.1.3), backfill `executor_party='INTERNAL'` cho row cũ. |
+| `1776300000012` | `MasterPlanSignOff` | ALTER master_plans thêm 3 cột sign-off. |
+| `1776300000013` | `MasterPlanTemplates` | (Phase B scaffold) bảng `master_plan_templates` + add col `template_id` lên wbs_nodes + task_templates. |
+
+**Rollback:** Mọi migration ALTER phải kèm `down()` drop cột. Phase A chạy 10-11-12 trước khi deploy Master Plan production; 13 skip tới Phase B.
+
+### 15.8. Privilege matrix delta
+
+- `MANAGE_FACILITY_CATALOG` (new) — seed admin only, CRUD `facility_systems` + `facility_equipment_items`. Gán mặc định cho SUPER_ADMIN + ADMIN_ORG.
+- Reuse `VIEW_MASTER_PLAN` cho endpoint Annual Grid + export.
+- Reuse `MANAGE_MASTER_PLAN` cho clone template (Phase B).
+
+### 15.9. Cross-stack frontend impact (delta §11)
+
+File frontend cần thêm/đổi:
+- `entities/facility-system/` — types + 2 hook (`useFacilitySystems`, `useFacilityEquipmentItems`).
+- `entities/master-plan/types.ts` — thêm field vào `TaskTemplate`, `MasterPlan`.
+- `features/master-plan/use-annual-grid.ts` — hook fetch grid.
+- `pages/master-plan/AnnualGridPage.tsx` — screen mới (UI_SPEC §12).
+- `features/master-plan/ExportXlsxButton.tsx` — GET blob → download.
+- `features/master-plan/TaskTemplateFormDialog.tsx` — thêm: Cascader System→Equipment, radio ExecutorParty, text contractor_name (conditional), multi-tag regulatory_refs, select freq_code, checkbox allow_adhoc_trigger.
+
+### 15.10. Test coverage cho delta
+
+- Pure fn `rrule-expand.ts`: 6 test (expand D/W/M/Q/HY/Y/Y_URGENT + edge leap year 53 tuần).
+- `AnnualGridService.build()`: 4 test (empty plan, mixed frequencies, actual status mapping, multi-year guard).
+- `TaskTemplate` validator: 3 test (contractor_name required khi CONTRACTOR/MIXED, freq_code enum, regulatory_refs array size limit).
+- Export XLSX: 1 integration test dùng `exceljs` reader để assert header row + 1 data row + sign-off row.
+
+Target: +14 unit test, full suite dự kiến 479 → **493** sau Gate 3 supplement implement.
+
+### 15.11. Checklist Gate 2 Supplement
+
+- [x] ERD delta 6 entity-level change (3 bảng mới, 2 alter, 1 enum)
+- [x] DTO mở rộng task_templates với `ValidateIf` cho contractor
+- [x] 7 endpoint mới (4 master-data + 3 master-plan)
+- [x] Response shape Annual Grid JSON spec
+- [x] Migration plan 4 file mới (10→13)
+- [x] Privilege mới `MANAGE_FACILITY_CATALOG`
+- [x] Frontend impact map 6 files
+- [x] Test coverage plan +14
