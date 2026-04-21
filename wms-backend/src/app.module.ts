@@ -49,6 +49,7 @@ import { ChecklistsModule } from './checklists/checklists.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { OfficeTasksModule } from './office-tasks/office-tasks.module';
 import { EnergyInspectionModule } from './energy-inspection/energy-inspection.module';
+import { FacilityCatalogModule } from './facility-catalog/facility-catalog.module';
 
 @Module({
   imports: [
@@ -142,6 +143,7 @@ import { EnergyInspectionModule } from './energy-inspection/energy-inspection.mo
     IncidentsModule,
     OfficeTasksModule,
     EnergyInspectionModule,
+    FacilityCatalogModule,
   ],
   controllers: [AppController],
   providers: [

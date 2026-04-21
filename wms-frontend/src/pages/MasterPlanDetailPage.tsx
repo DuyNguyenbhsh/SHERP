@@ -34,6 +34,7 @@ import { TaskTemplateFormDialog } from '@/features/master-plan/ui/TaskTemplateFo
 import { MasterPlanDashboard } from '@/features/master-plan/ui/MasterPlanDashboard'
 import { InstancesPanel } from '@/features/master-plan/ui/InstancesPanel'
 import { TaskTemplatesPanel } from '@/features/master-plan/ui/TaskTemplatesPanel'
+import { AnnualGridPanel } from '@/features/master-plan/ui/AnnualGridPanel'
 import { useAuthStore } from '@/features/auth/model/auth.store'
 import { getErrorMessage } from '@/shared/api/axios'
 
@@ -110,6 +111,7 @@ export function MasterPlanDetailPage(): React.JSX.Element {
           <TabsTrigger value="overview">Tổng quan</TabsTrigger>
           <TabsTrigger value="wbs">Cây WBS</TabsTrigger>
           <TabsTrigger value="templates">Task Templates</TabsTrigger>
+          <TabsTrigger value="annual-grid">Annual Grid</TabsTrigger>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="instances">Work Items</TabsTrigger>
         </TabsList>
@@ -264,6 +266,10 @@ export function MasterPlanDetailPage(): React.JSX.Element {
           <TaskTemplatesPanel planId={planId} />
         </TabsContent>
 
+        <TabsContent value="annual-grid">
+          <AnnualGridPanel planId={planId} planCode={plan.code} defaultYear={plan.year} />
+        </TabsContent>
+
         <TabsContent value="dashboard">
           <MasterPlanDashboard planId={planId} />
         </TabsContent>
@@ -288,6 +294,7 @@ export function MasterPlanDetailPage(): React.JSX.Element {
           open={tplDialog.open}
           onOpenChange={(v) => setTplDialog({ open: v, nodeId: v ? tplDialog.nodeId : undefined })}
           wbsNodeId={tplDialog.nodeId}
+          planId={planId}
         />
       )}
 

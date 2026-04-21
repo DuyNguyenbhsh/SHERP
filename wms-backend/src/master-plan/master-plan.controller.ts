@@ -1,16 +1,22 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -24,13 +30,19 @@ import { CreateWbsNodeDto } from './dto/create-wbs-node.dto';
 import { UpdateWbsNodeDto } from './dto/update-wbs-node.dto';
 import { CreateTaskTemplateDto } from './dto/create-task-template.dto';
 import { MasterPlanService } from './master-plan.service';
+import { AnnualGridService } from './annual-grid.service';
+import { ExportXlsxService } from './export-xlsx.service';
 
 @ApiTags('Master Plan - Cây WBS + recurrence')
 @ApiBearerAuth('bearer')
 @UseGuards(JwtAuthGuard, PrivilegeGuard)
 @Controller('master-plan')
 export class MasterPlanController {
-  constructor(private readonly service: MasterPlanService) {}
+  constructor(
+    private readonly service: MasterPlanService,
+    private readonly annualGridService: AnnualGridService,
+    private readonly exportXlsxService: ExportXlsxService,
+  ) {}
 
   // ── Master Plan ──────────────────────────────────────────
   @ApiOperation({ summary: 'Tạo Master Plan mới' })
@@ -152,6 +164,51 @@ export class MasterPlanController {
   @Get(':planId/task-templates')
   listTemplates(@Param('planId') planId: string) {
     return this.service.listTaskTemplatesByPlan(planId);
+  }
+
+  // ── Annual Grid + Export XLSX (Supplement 2026-04-20) ────
+  @ApiOperation({
+    summary:
+      'Ma trận Annual Plan (48-53 cột tuần × N template) — planned từ freq_code/RRULE + actual từ work_items',
+  })
+  @ApiQuery({ name: 'year', type: Number, required: true })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':planId/annual-grid')
+  annualGrid(
+    @Param('planId') planId: string,
+    @Query('year', ParseIntPipe) year: number,
+  ) {
+    if (year < 2000 || year > 2100) {
+      throw new BadRequestException('year phải trong khoảng 2000-2100');
+    }
+    return this.annualGridService.build(planId, year);
+  }
+
+  @ApiOperation({
+    summary:
+      'Xuất XLSX Annual Plan theo format O&M — A3 landscape, 2 dòng sign-off cuối',
+  })
+  @ApiQuery({ name: 'year', type: Number, required: true })
+  @RequirePrivilege('VIEW_MASTER_PLAN')
+  @Get(':planId/export-xlsx')
+  async exportXlsx(
+    @Param('planId') planId: string,
+    @Query('year', ParseIntPipe) year: number,
+    @Res() res: Response,
+  ): Promise<void> {
+    if (year < 2000 || year > 2100) {
+      throw new BadRequestException('year phải trong khoảng 2000-2100');
+    }
+    const { buffer, filename } = await this.exportXlsxService.export(
+      planId,
+      year,
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   // ── Admin: trigger daily scan thủ công ───────────────────

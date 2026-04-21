@@ -52,6 +52,16 @@ export class MasterPlan {
   @Column({ type: 'timestamp with time zone', nullable: true })
   approved_at: Date | null;
 
+  // Sign-off metadata (BA §10.7) — template xlsx cần in tên + địa điểm ký
+  @Column({ type: 'uuid', nullable: true })
+  prepared_by_id: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  prepared_at: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  location_label: string | null;
+
   @OneToMany(() => WbsNode, (n) => n.master_plan)
   wbs_nodes: WbsNode[];
 
