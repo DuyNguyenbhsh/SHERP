@@ -26,7 +26,18 @@ export function buildRedisOptions(config: ConfigService): RedisOptions {
 }
 
 function parseUrl(url: string): Partial<RedisOptions> {
-  const u = new URL(url);
+  // Upstash "Connect with redis-cli" snippet có prefix `redis-cli --tls -u <URL>`.
+  // Khi user copy nguyên cả dòng thì URL không parse được → trích redis[s]:// substring.
+  const match = url.match(/redis[s]?:\/\/\S+/i);
+  const cleaned = match ? match[0] : url.trim();
+  let u: URL;
+  try {
+    u = new URL(cleaned);
+  } catch {
+    throw new Error(
+      `REDIS_URL không hợp lệ (không parse được thành URL). Cleaned="${cleaned.slice(0, 40)}...". Hãy kiểm tra env trên Render/.env, chỉ dán URL dạng "redis[s]://user:pass@host:port" — không kèm prefix "redis-cli --tls -u ".`,
+    );
+  }
   return {
     host: u.hostname,
     port: Number(u.port || 6379),
