@@ -38,7 +38,8 @@ export function EntityPicker<T extends EntityItemBase>({
   const hydratedIdRef = useRef<string | null>(null)
   const debouncedQuery = useDebouncedValue(query, debounceMs)
 
-  // Fetch items when query changes (or on open if minQueryLength=0)
+  // Fetch items when query changes (or on open if minQueryLength=0).
+  // setState calls here sync async fetch result into render state — intended.
   useEffect(() => {
     if (!open) return
     if (debouncedQuery.length < minQueryLength) {
@@ -46,6 +47,7 @@ export function EntityPicker<T extends EntityItemBase>({
       return
     }
     let cancelled = false
+
     setIsLoading(true)
     onSearch(debouncedQuery)
       .then((res) => {
@@ -62,7 +64,8 @@ export function EntityPicker<T extends EntityItemBase>({
     }
   }, [debouncedQuery, open, minQueryLength, onSearch])
 
-  // Hydrate selectedItem in edit mode (fetch label once per value)
+  // Hydrate selectedItem in edit mode (fetch label once per value).
+  // setState here syncs parent's `value` prop (external source) with internal display state.
   useEffect(() => {
     if (!value) {
       setSelectedItem(null)

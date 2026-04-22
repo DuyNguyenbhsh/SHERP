@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 
 export interface EntityItemBase {
   id: string
-  [key: string]: unknown
 }
 
 export interface EntityPickerProps<T extends EntityItemBase> {
