@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddViewAllProjectsPrivilege1776300000013
-  implements MigrationInterface
-{
+export class AddViewAllProjectsPrivilege1776300000013 implements MigrationInterface {
   name = 'AddViewAllProjectsPrivilege1776300000013';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

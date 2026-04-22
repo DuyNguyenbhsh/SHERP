@@ -6,6 +6,7 @@ import { MasterPlan } from './entities/master-plan.entity';
 import { WbsNode } from './entities/wbs-node.entity';
 import { TaskTemplate } from './entities/task-template.entity';
 import { WorkItem } from '../work-items/entities/work-item.entity';
+import { Project } from '../projects/entities/project.entity';
 import { MasterPlanService } from './master-plan.service';
 import { MasterPlanController } from './master-plan.controller';
 import { AnnualGridService } from './annual-grid.service';
@@ -20,7 +21,13 @@ import { FacilityCatalogModule } from '../facility-catalog/facility-catalog.modu
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MasterPlan, WbsNode, TaskTemplate, WorkItem]),
+    TypeOrmModule.forFeature([
+      MasterPlan,
+      WbsNode,
+      TaskTemplate,
+      WorkItem,
+      Project,
+    ]),
     BullModule.registerQueue({ name: MASTER_PLAN_RECURRENCE_QUEUE }),
     ChecklistsModule,
     OfficeTasksModule,
