@@ -34,7 +34,7 @@ export function FinanceKpiCards({ projectId }: FinanceKpiCardsProps): React.JSX.
   return (
     <div className="grid grid-cols-3 gap-4">
       {/* Budget */}
-      <div className="rounded-xl border bg-gradient-to-br from-blue-50 to-white p-4">
+      <div className="rounded-xl border bg-blue-50 p-4">
         <div className="flex items-center gap-2 mb-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
             <Banknote className="h-4 w-4 text-blue-600" />
@@ -49,7 +49,7 @@ export function FinanceKpiCards({ projectId }: FinanceKpiCardsProps): React.JSX.
 
       {/* Actual Cost */}
       <div
-        className={`rounded-xl border p-4 ${isOverBudget ? 'bg-gradient-to-br from-red-50 to-white border-red-200' : 'bg-gradient-to-br from-green-50 to-white'}`}
+        className={`rounded-xl border p-4 ${isOverBudget ? 'bg-red-50 border-red-200' : 'bg-green-50'}`}
       >
         <div className="flex items-center gap-2 mb-2">
           <div
@@ -72,9 +72,7 @@ export function FinanceKpiCards({ projectId }: FinanceKpiCardsProps): React.JSX.
       {/* Variance */}
       <div
         className={`rounded-xl border p-4 ${
-          isOverBudget
-            ? 'bg-gradient-to-br from-red-50 to-white border-red-200'
-            : 'bg-gradient-to-br from-emerald-50 to-white'
+          isOverBudget ? 'bg-red-50 border-red-200' : 'bg-emerald-50'
         }`}
       >
         <div className="flex items-center gap-2 mb-2">

@@ -540,7 +540,7 @@ export function PlanTab({ projectId }: { projectId: string }): React.JSX.Element
 
       {/* Baseline card */}
       {baseline && (
-        <div className="rounded-xl border-2 border-green-300 bg-gradient-to-r from-green-50 to-emerald-50 p-5">
+        <div className="rounded-xl border-2 border-green-300 bg-green-50 p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 text-green-600" />

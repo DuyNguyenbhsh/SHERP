@@ -30,6 +30,7 @@ import {
 } from '@/entities/customer'
 import { CustomerFormDialog } from '@/features/customer/ui/CustomerFormDialog'
 import { getErrorMessage } from '@/shared/api/axios'
+import { QueryStateRow } from '@/shared/ui'
 
 export function CustomersPage(): React.JSX.Element {
   const [showInactive, setShowInactive] = useState(false)
@@ -38,7 +39,13 @@ export function CustomersPage(): React.JSX.Element {
   const [editTarget, setEditTarget] = useState<Customer | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
 
-  const { data: customers, isLoading } = useCustomers({
+  const {
+    data: customers,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useCustomers({
     is_active: showInactive ? undefined : true,
   })
   const deleteMut = useDeleteCustomer()
@@ -107,96 +114,90 @@ export function CustomersPage(): React.JSX.Element {
         </label>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mã KH</TableHead>
-                <TableHead>Tên pháp nhân</TableHead>
-                <TableHead>Loại</TableHead>
-                <TableHead>Điện thoại</TableHead>
-                <TableHead>Điều khoản</TableHead>
-                <TableHead className="text-right">Hạn mức</TableHead>
-                <TableHead className="text-right">Công nợ</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="w-32">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground py-8 text-center">
-                    Không có khách hàng nào
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((c) => {
-                  const overLimit = Number(c.current_debt) > Number(c.credit_limit)
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-mono text-sm">{c.customer_code}</TableCell>
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{CUSTOMER_TYPE_LABELS[c.customer_type]}</Badge>
-                      </TableCell>
-                      <TableCell>{c.primary_phone ?? '-'}</TableCell>
-                      <TableCell>{CUSTOMER_PAYMENT_TERM_LABELS[c.payment_term]}</TableCell>
-                      <TableCell className="text-right">{formatNum(c.credit_limit)}</TableCell>
-                      <TableCell
-                        className={`text-right ${overLimit ? 'text-destructive font-semibold' : ''}`}
-                      >
-                        {formatNum(c.current_debt)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {c.is_active ? (
-                            <Badge>Hoạt động</Badge>
-                          ) : (
-                            <Badge variant="secondary">Đã vô hiệu</Badge>
-                          )}
-                          {c.is_blacklisted && (
-                            <Badge variant="destructive">
-                              <Ban className="mr-1 h-3 w-3" />
-                              Blacklist
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          {c.is_active ? (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => setEditTarget(c)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteTarget(c)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <Button variant="ghost" size="icon" onClick={() => handleRestore(c)}>
-                              <RotateCcw className="h-4 w-4" />
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mã KH</TableHead>
+              <TableHead>Tên pháp nhân</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead>Điện thoại</TableHead>
+              <TableHead>Điều khoản</TableHead>
+              <TableHead className="text-right">Hạn mức</TableHead>
+              <TableHead className="text-right">Công nợ</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-32">Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading || isError || filtered.length === 0 ? (
+              <QueryStateRow
+                colSpan={9}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={filtered.length === 0}
+                error={error}
+                onRetry={() => void refetch()}
+                emptyText="Không có khách hàng nào"
+              />
+            ) : (
+              filtered.map((c) => {
+                const overLimit = Number(c.current_debt) > Number(c.credit_limit)
+                return (
+                  <TableRow key={c.id}>
+                    <TableCell className="font-mono text-sm">{c.customer_code}</TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{CUSTOMER_TYPE_LABELS[c.customer_type]}</Badge>
+                    </TableCell>
+                    <TableCell>{c.primary_phone ?? '-'}</TableCell>
+                    <TableCell>{CUSTOMER_PAYMENT_TERM_LABELS[c.payment_term]}</TableCell>
+                    <TableCell className="text-right">{formatNum(c.credit_limit)}</TableCell>
+                    <TableCell
+                      className={`text-right ${overLimit ? 'text-destructive font-semibold' : ''}`}
+                    >
+                      {formatNum(c.current_debt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {c.is_active ? (
+                          <Badge>Hoạt động</Badge>
+                        ) : (
+                          <Badge variant="secondary">Đã vô hiệu</Badge>
+                        )}
+                        {c.is_blacklisted && (
+                          <Badge variant="destructive">
+                            <Ban className="mr-1 h-3 w-3" />
+                            Blacklist
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {c.is_active ? (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => setEditTarget(c)}>
+                              <Pencil className="h-4 w-4" />
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(c)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button variant="ghost" size="icon" onClick={() => handleRestore(c)}>
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <CustomerFormDialog open={formOpen} onClose={() => setFormOpen(false)} />
       <CustomerFormDialog

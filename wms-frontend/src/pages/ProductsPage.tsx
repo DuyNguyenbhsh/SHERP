@@ -28,6 +28,7 @@ import {
   type Product,
 } from '@/entities/product'
 import { ProductFormDialog } from '@/features/product/ui/ProductFormDialog'
+import { QueryStateRow } from '@/shared/ui'
 import { getErrorMessage } from '@/shared/api/axios'
 
 export function ProductsPage(): React.JSX.Element {
@@ -37,7 +38,7 @@ export function ProductsPage(): React.JSX.Element {
   const [editTarget, setEditTarget] = useState<Product | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
-  const { data: products, isLoading } = useProducts(showInactive)
+  const { data: products, isLoading, isError, error, refetch } = useProducts(showInactive)
   const deleteMut = useDeleteProduct()
   const restoreMut = useRestoreProduct()
 
@@ -101,75 +102,73 @@ export function ProductsPage(): React.JSX.Element {
         </label>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mã SKU</TableHead>
-                <TableHead>Tên</TableHead>
-                <TableHead>Loại</TableHead>
-                <TableHead>ĐVT</TableHead>
-                <TableHead className="text-right">Giá nhập</TableHead>
-                <TableHead className="text-right">Giá lẻ</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="w-32">Thao tác</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-muted-foreground py-8 text-center">
-                    Không có sản phẩm nào
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mã SKU</TableHead>
+              <TableHead>Tên</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead>ĐVT</TableHead>
+              <TableHead className="text-right">Giá nhập</TableHead>
+              <TableHead className="text-right">Giá lẻ</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-32">Thao tác</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading || isError || filtered.length === 0 ? (
+              <QueryStateRow
+                colSpan={8}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={filtered.length === 0}
+                error={error}
+                onRetry={() => void refetch()}
+                emptyText="Không có sản phẩm nào"
+              />
+            ) : (
+              filtered.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-mono text-sm">{p.sku}</TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{ITEM_TYPE_LABELS[p.item_type]}</Badge>
+                  </TableCell>
+                  <TableCell>{p.unit_of_measure}</TableCell>
+                  <TableCell className="text-right">{formatPrice(p.purchase_price)}</TableCell>
+                  <TableCell className="text-right">{formatPrice(p.retail_price)}</TableCell>
+                  <TableCell>
+                    {p.is_active ? (
+                      <Badge>Hoạt động</Badge>
+                    ) : (
+                      <Badge variant="secondary">Đã vô hiệu</Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {p.is_active ? (
+                        <>
+                          <Button variant="ghost" size="icon" onClick={() => setEditTarget(p)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(p)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button variant="ghost" size="icon" onClick={() => handleRestore(p)}>
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                filtered.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-mono text-sm">{p.sku}</TableCell>
-                    <TableCell className="font-medium">{p.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{ITEM_TYPE_LABELS[p.item_type]}</Badge>
-                    </TableCell>
-                    <TableCell>{p.unit_of_measure}</TableCell>
-                    <TableCell className="text-right">{formatPrice(p.purchase_price)}</TableCell>
-                    <TableCell className="text-right">{formatPrice(p.retail_price)}</TableCell>
-                    <TableCell>
-                      {p.is_active ? (
-                        <Badge>Hoạt động</Badge>
-                      ) : (
-                        <Badge variant="secondary">Đã vô hiệu</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {p.is_active ? (
-                          <>
-                            <Button variant="ghost" size="icon" onClick={() => setEditTarget(p)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(p)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <Button variant="ghost" size="icon" onClick={() => handleRestore(p)}>
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <ProductFormDialog open={formOpen} onClose={() => setFormOpen(false)} />
       <ProductFormDialog

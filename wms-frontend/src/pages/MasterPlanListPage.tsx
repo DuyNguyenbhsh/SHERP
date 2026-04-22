@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Plus, Pencil, CheckCircle2, Lock } from 'lucide-react'
+import { Plus, Pencil, CheckCircle2, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -22,6 +22,7 @@ import {
 import { MasterPlanFormDialog } from '@/features/master-plan/ui/MasterPlanFormDialog'
 import { useAuthStore } from '@/features/auth/model/auth.store'
 import { getErrorMessage } from '@/shared/api/axios'
+import { QueryStateRow } from '@/shared/ui'
 
 const STATUS_VARIANT: Record<MasterPlan['status'], 'default' | 'secondary' | 'outline'> = {
   DRAFT: 'outline',
@@ -34,7 +35,7 @@ export function MasterPlanListPage(): React.JSX.Element {
   const canManage = hasPrivilege('MANAGE_MASTER_PLAN')
   const canApprove = hasPrivilege('APPROVE_MASTER_PLAN')
 
-  const { data, isLoading } = useMasterPlans()
+  const { data, isLoading, isError, error, refetch } = useMasterPlans()
   const approveMut = useApproveMasterPlan()
   const closeMut = useCloseMasterPlan()
   const [formOpen, setFormOpen] = useState(false)
@@ -90,76 +91,75 @@ export function MasterPlanListPage(): React.JSX.Element {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            )}
-            {!isLoading && (data?.length ?? 0) === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Chưa có Master Plan nào — bấm "Tạo Master Plan" để bắt đầu
-                </TableCell>
-              </TableRow>
-            )}
-            {data?.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell className="font-mono text-sm">
-                  <Link to={`/master-plan/${p.id}`} className="text-primary hover:underline">
-                    {p.code}
-                  </Link>
-                </TableCell>
-                <TableCell>{p.name}</TableCell>
-                <TableCell className="tabular-nums">{p.year}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_VARIANT[p.status]}>
-                    {MASTER_PLAN_STATUS_LABELS[p.status]}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{formatVnd(p.budget_vnd)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    {canManage && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditTarget(p)
-                          setFormOpen(true)
-                        }}
-                        title="Sửa"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {canApprove && p.status === 'DRAFT' && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleApprove(p)}
-                        disabled={approveMut.isPending}
-                        title="Phê duyệt"
-                      >
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      </Button>
-                    )}
-                    {canManage && p.status !== 'CLOSED' && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleClose(p)}
-                        disabled={closeMut.isPending}
-                        title="Đóng"
-                      >
-                        <Lock className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            <QueryStateRow
+              colSpan={6}
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={!isLoading && !isError && (data?.length ?? 0) === 0}
+              error={error}
+              onRetry={() => void refetch()}
+              emptyText='Chưa có Master Plan nào — bấm "Tạo Master Plan" để bắt đầu'
+            />
+            {!isLoading &&
+              !isError &&
+              data?.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell className="font-mono text-sm">
+                    <Link to={`/master-plan/${p.id}`} className="text-primary hover:underline">
+                      {p.code}
+                    </Link>
+                  </TableCell>
+                  <TableCell>{p.name}</TableCell>
+                  <TableCell className="tabular-nums">{p.year}</TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[p.status]}>
+                      {MASTER_PLAN_STATUS_LABELS[p.status]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatVnd(p.budget_vnd)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      {canManage && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditTarget(p)
+                            setFormOpen(true)
+                          }}
+                          title="Sửa"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canApprove && p.status === 'DRAFT' && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleApprove(p)}
+                          disabled={approveMut.isPending}
+                          title="Phê duyệt"
+                        >
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        </Button>
+                      )}
+                      {canManage && p.status !== 'CLOSED' && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleClose(p)}
+                          disabled={closeMut.isPending}
+                          title="Đóng"
+                        >
+                          <Lock className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </div>

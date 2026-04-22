@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/dialog'
 import { useProjects, useUpdateProject, useDeleteProject } from '@/entities/project'
 import { useQueryClient } from '@tanstack/react-query'
-import { TableActions } from '@/shared/ui'
+import { TableActions, QueryStateRow } from '@/shared/ui'
 import { useOrganizations } from '@/entities/organization'
 import type { Project, ProjectStage, ProjectStatus } from '@/entities/project'
 import { CreateProjectDialog } from '@/features/project/ui/CreateProjectDialog'
@@ -393,7 +393,7 @@ function DisplayRow({
 // ══════════════════════════════════════════════════════
 
 export function ProjectsPage(): React.JSX.Element {
-  const { data: projects, isLoading } = useProjects()
+  const { data: projects, isLoading, isError, error, refetch } = useProjects()
   const { data: organizations } = useOrganizations()
   const updateMutation = useUpdateProject()
   const deleteMutation = useDeleteProject()
@@ -515,18 +515,16 @@ export function ProjectsPage(): React.JSX.Element {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={colCount} className="text-center py-12">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : !projects?.length ? (
-              <TableRow>
-                <TableCell colSpan={colCount} className="text-center text-muted-foreground py-12">
-                  Chưa có dự án nào
-                </TableCell>
-              </TableRow>
+            {isLoading || isError || !projects?.length ? (
+              <QueryStateRow
+                colSpan={colCount}
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={!projects?.length}
+                error={error}
+                onRetry={() => void refetch()}
+                emptyText="Chưa có dự án nào"
+              />
             ) : (
               projects.map((p) =>
                 editingId === p.id && editRow ? (

@@ -110,7 +110,7 @@ function OrgNodeComponent({ data }: NodeProps) {
   const isStore = d.orgType === 'RETAIL_STORE'
 
   const border = isStore ? 'border-amber-200' : 'border-blue-200'
-  const grad = isStore ? 'from-amber-50' : 'from-blue-50'
+  const bgTint = isStore ? 'bg-amber-50' : 'bg-blue-50'
   const iconBg = isStore ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'
   const handle = isStore ? '!bg-amber-400' : '!bg-blue-400'
   const badgeCls =
@@ -120,7 +120,7 @@ function OrgNodeComponent({ data }: NodeProps) {
 
   return (
     <div
-      className={`flex w-[280px] items-center gap-3 rounded-xl border ${border} bg-gradient-to-br ${grad} to-white px-4 py-3 shadow-md transition-shadow hover:shadow-lg cursor-pointer`}
+      className={`flex w-[280px] items-center gap-3 rounded-xl border ${border} ${bgTint} px-4 py-3 shadow-md transition-shadow hover:shadow-lg cursor-pointer`}
       onClick={() => d.onClick(d.orgId)}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -205,7 +205,7 @@ function ProjectNodeComponent({ data }: NodeProps) {
 
   return (
     <div
-      className="flex w-[260px] items-center gap-3 rounded-xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 to-white px-4 py-3 shadow-md transition-shadow hover:shadow-lg cursor-pointer"
+      className="flex w-[260px] items-center gap-3 rounded-xl border-2 border-violet-300 bg-violet-50 px-4 py-3 shadow-md transition-shadow hover:shadow-lg cursor-pointer"
       onClick={() => d.onClick(d.projectId)}
     >
       <Handle type="target" position={Position.Top} className="!h-2 !w-2 !bg-violet-400" />
