@@ -44,4 +44,25 @@ describe('buildRedisOptions', () => {
     expect(opts.host).toBe('localhost');
     expect(opts.port).toBe(6379);
   });
+
+  it('auto-enable TLS khi host là *.upstash.io dù scheme redis://', () => {
+    const opts = buildRedisOptions(
+      cfg({
+        REDIS_URL: 'redis://default:abc@eager-wren-85799.upstash.io:6379',
+      }),
+    );
+    expect((opts as { tls?: object }).tls).toBeDefined();
+  });
+
+  it('retryStrategy back-off exponential, dừng sau 20 lần', () => {
+    const opts = buildRedisOptions(
+      cfg({ REDIS_URL: 'rediss://h:1@example:6379' }),
+    );
+    const strat = opts.retryStrategy as (n: number) => number | null;
+    expect(strat(1)).toBe(500);
+    expect(strat(2)).toBe(1000);
+    expect(strat(5)).toBe(8000);
+    expect(strat(10)).toBe(10000); // capped
+    expect(strat(21)).toBeNull(); // stop
+  });
 });

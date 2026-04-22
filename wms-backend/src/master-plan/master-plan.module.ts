@@ -54,21 +54,28 @@ export class MasterPlanModule implements OnModuleInit {
       );
       return;
     }
-    try {
-      await this.queue.add(
-        'daily-scan',
-        { runAt: new Date().toISOString() },
-        {
-          repeat: { pattern: '5 17 * * *' }, // 00:05 VN = 17:05 UTC
-          jobId: 'recurrence-daily-scan-cron',
-          removeOnComplete: { age: 3600 },
-        },
-      );
-      this.logger.log(
-        'Đã đăng ký repeatable job daily-scan (00:05 VN mỗi ngày)',
-      );
-    } catch (err) {
-      this.logger.warn(`Không đăng ký được cron: ${(err as Error).message}`);
-    }
+    // Đăng ký async không block bootstrap — nếu Redis chưa sẵn sàng,
+    // app.listen() vẫn phải chạy để Render healthcheck PASS.
+    void this.registerCron().catch((err) =>
+      this.logger.warn(`Không đăng ký được cron: ${(err as Error).message}`),
+    );
+  }
+
+  private async registerCron(): Promise<void> {
+    // Timeout 5s — nếu Redis lỗi, đừng treo forever.
+    const addPromise = this.queue.add(
+      'daily-scan',
+      { runAt: new Date().toISOString() },
+      {
+        repeat: { pattern: '5 17 * * *' }, // 00:05 VN = 17:05 UTC
+        jobId: 'recurrence-daily-scan-cron',
+        removeOnComplete: { age: 3600 },
+      },
+    );
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout 5s khi add cron job')), 5000),
+    );
+    await Promise.race([addPromise, timeout]);
+    this.logger.log('Đã đăng ký repeatable job daily-scan (00:05 VN mỗi ngày)');
   }
 }
