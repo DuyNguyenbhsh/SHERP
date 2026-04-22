@@ -13,7 +13,7 @@
 
 ## 1. Executive Summary
 
-Thiết kế endpoint `GET /projects/lookup` (light-weight LOV) + `<EntityPicker>` 2-tier thay thế text input UUID thô trong `MasterPlanFormDialog`. Không đổi schema nghiệp vụ; chỉ seed 1 privilege mới `VIEW_ALL_PROJECTS` để bypass filter tổ chức. V1 filter exact match `organization_id = user.organization_id`; V2 subtree tổ chức backlog hóa (ticket `ORG-HIERARCHY-VISIBILITY`). Budget hard-block vẫn giữ ở `MasterPlanService.approve()`; bước `create` trả warning non-blocking (BR-MPL-04). Error message Việt ngữ tập trung ở `common/constants/error-messages.ts` (BR-MPL-05). Mục tiêu P95 < 300ms ở 10k projects, đạt bằng index `LOWER(project_code)` ship V1 + `pg_trgm` GIN ship sau khi đo metric. Frontend thêm `cmdk` + shadcn `<Command>` (chưa có trong dependencies — phải add), wrap thành `EntityPicker` (generic) + `ProjectPicker` (pre-configured).
+Thiết kế endpoint `GET /projects/lookup` (light-weight LOV) + `<EntityPicker>` 2-tier thay thế text input UUID thô trong `MasterPlanFormDialog`. Không đổi schema nghiệp vụ; chỉ seed 1 privilege mới `VIEW_ALL_PROJECTS` để bypass filter tổ chức. V1 filter `organization_id IN (:...user.contexts)` (contexts là `string[]` theo `authenticated-request.ts:9`); V2 subtree org hierarchy backlog hóa (ticket `ORG-HIERARCHY-VISIBILITY`). Budget hard-block vẫn giữ ở `MasterPlanService.approve()`; bước `create` trả warning non-blocking dùng `project.budget` làm headroom base V1 (V2 backlog `BUDGET-HEADROOM-ACCURATE-CALC`). Search hỗ trợ tiếng Việt không dấu ngay V1 qua `f_unaccent()` IMMUTABLE wrapper + GIN trigram index. Error message Việt ngữ tập trung ở `common/constants/error-messages.ts` (BR-MPL-05). Mục tiêu P95 < 300ms ở 10k projects, đạt bằng 4 index ship V1 trong cùng migration `1776300000013`. Frontend thêm `cmdk` + shadcn `<Command>` (chưa có — Dev Gate 4 install), wrap thành `EntityPicker` (generic) + `ProjectPicker` (pre-configured).
 
 ---
 
@@ -56,6 +56,17 @@ export class AddViewAllProjectsPrivilege1776300000013 implements MigrationInterf
   name = 'AddViewAllProjectsPrivilege1776300000013';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // 1) IMMUTABLE wrapper cho unaccent (để index-able).
+    //    Default `public.unaccent(text)` là STABLE → Postgres từ chối index functional trực tiếp.
+    //    Gọi qua form 2-arg `unaccent(dictionary, text)` (STRICT + IMMUTABLE) bọc trong SQL function.
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION public.f_unaccent(text) RETURNS text
+        LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS $$
+        SELECT public.unaccent('public.unaccent', $1);
+      $$;
+    `);
+
+    // 2) Seed privilege VIEW_ALL_PROJECTS (idempotent).
     await queryRunner.query(
       `INSERT INTO privileges (id, privilege_code, privilege_name, module, is_active, created_at, updated_at)
        VALUES (uuid_generate_v4(), 'VIEW_ALL_PROJECTS',
@@ -64,18 +75,46 @@ export class AddViewAllProjectsPrivilege1776300000013 implements MigrationInterf
     );
     // SeedService.onApplicationBootstrap() sẽ auto-assign privilege mới
     // cho role SUPER_ADMIN (logic phần 2 trong seed.service.ts:192-216).
-    // KHÔNG gán thủ công ở đây để tránh double-grant.
+
+    // 3) Index ship V1 cho endpoint /projects/lookup.
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_projects_code_lower
+        ON projects (LOWER(project_code));
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_projects_status_active
+        ON projects (status) WHERE deleted_at IS NULL;
+    `);
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_projects_org_status
+        ON projects (organization_id, status) WHERE deleted_at IS NULL;
+    `);
+    // GIN trigram trên f_unaccent(LOWER(name)) — hỗ trợ search không dấu (C7 override).
+    // pg_trgm đã enable từ migration 1776300000033 (DocumentControlV21Sprint4).
+    await queryRunner.query(`
+      CREATE INDEX IF NOT EXISTS idx_projects_name_unaccent_trgm
+        ON projects USING gin (public.f_unaccent(LOWER(project_name)) gin_trgm_ops);
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Drop theo thứ tự ngược lại.
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_projects_name_unaccent_trgm`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_projects_org_status`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_projects_status_active`);
+    await queryRunner.query(`DROP INDEX IF EXISTS idx_projects_code_lower`);
     await queryRunner.query(
       `DELETE FROM privileges WHERE privilege_code = 'VIEW_ALL_PROJECTS'`,
     );
+    // KHÔNG drop f_unaccent — có thể được dùng bởi migration/feature sau.
   }
 }
 ```
 
-**Lưu ý integrity:** Migration chỉ `INSERT ... ON CONFLICT DO NOTHING` → idempotent, chạy lại không lỗi. `down()` xóa cứng theo `privilege_code` (không có FK RESTRICT từ role_privileges vì seed service dùng cascade/rebuild).
+**Lưu ý integrity:**
+- `INSERT ... ON CONFLICT DO NOTHING` + `CREATE INDEX IF NOT EXISTS` → idempotent, chạy lại không lỗi.
+- `CREATE INDEX` KHÔNG dùng `CONCURRENTLY` trong TypeORM migration vì migration bọc trong transaction; `CONCURRENTLY` không tương thích. Chấp nhận brief lock khi deploy (dataset projects hiện < 10k → dưới 1s).
+- `down()` không drop `f_unaccent` để tránh break các migration/feature sau có thể dùng wrapper này.
 
 ### 2.4 Bổ sung enum Frontend + Backend (để type-safe)
 
@@ -127,7 +166,9 @@ Response bọc qua `TransformInterceptor` → shape thực tế:
 }
 ```
 
-**⚠️ Lệch với BA_SPEC §5:** BA_SPEC mô tả `status: 'success'` (string). Thực tế `TransformInterceptor` (`common/interceptors/transform.interceptor.ts:42`) set `status: true` (boolean). SA chọn tuân theo interceptor hiện có → ghi ở §12 Concerns.
+**⚠️ Lệch với BA_SPEC §5:** BA_SPEC mô tả `status: 'success'` (string). Thực tế `TransformInterceptor` (`common/interceptors/transform.interceptor.ts:42`) set `status: true` (boolean).
+
+> **✅ Tech Advisor đã duyệt (2026-04-22):** Giữ `status: true` (boolean). BA_SPEC §5 sẽ revise để đồng bộ. Không đổi `TransformInterceptor`.
 
 #### 3.1.3 `LookupProjectItemDto`
 
@@ -297,6 +338,7 @@ cd wms-frontend && npm run type-check && npm run lint
 async search(dto: LookupProjectsDto, user: AuthenticatedUser) {
   const statuses = dto.status_whitelist ?? PROJECT_ACTIVE_STATUSES;
   const bypassOrgFilter = user.privileges.includes('VIEW_ALL_PROJECTS');
+  const userContexts: string[] = user.contexts ?? [];
 
   const qb = this.projectRepo
     .createQueryBuilder('p')
@@ -309,13 +351,24 @@ async search(dto: LookupProjectsDto, user: AuthenticatedUser) {
     .andWhere('p.deleted_at IS NULL');
 
   if (!bypassOrgFilter) {
-    // V1 — exact match. V2 sẽ thay bằng IN (<subtree ids>) — xem §12.
-    qb.andWhere('p.organization_id = :orgId', { orgId: user.contexts?.organization_id });
+    if (userContexts.length === 0) {
+      // User không có context nào → trả rỗng (anti-leak, §7.2)
+      qb.andWhere('1=0');
+    } else {
+      // V1 — match theo tập context org user được cấp quyền.
+      // V2 sẽ mở rộng thành subtree (IN <tất cả descendants của mỗi context>) — xem §12.
+      qb.andWhere('p.organization_id IN (:...contexts)', { contexts: userContexts });
+    }
   }
 
   if (dto.q && dto.q.length >= 2) {
+    // project_code là ASCII → LOWER đủ.
+    // project_name có thể chứa dấu tiếng Việt → unaccent cả 2 vế (dùng f_unaccent IMMUTABLE wrapper).
     qb.andWhere(
-      '(LOWER(p.project_code) LIKE :q OR LOWER(p.project_name) LIKE :q)',
+      `(
+         LOWER(p.project_code) LIKE :q
+         OR public.f_unaccent(LOWER(p.project_name)) LIKE public.f_unaccent(:q)
+       )`,
       { q: `%${dto.q.toLowerCase()}%` },
     );
   }
@@ -353,7 +406,7 @@ async search(dto: LookupProjectsDto, user: AuthenticatedUser) {
 | User có privilege | Hành vi `/projects/lookup` |
 |---|---|
 | `VIEW_ALL_PROJECTS` (có thể kèm `VIEW_PROJECTS`) | Bypass filter org → thấy toàn bộ. |
-| Chỉ `VIEW_PROJECTS` | Filter `organization_id = user.contexts.organization_id`. |
+| Chỉ `VIEW_PROJECTS` | Filter `organization_id IN (user.contexts[])`. Nếu `contexts=[]` → trả rỗng (anti-leak, không throw 403). |
 | Không có cả 2 | `403 Forbidden` từ `PrivilegeGuard`. |
 
 ### 7.2 Anti-leak — không throw 403 theo dữ liệu
@@ -364,8 +417,10 @@ Khi filter trả 0 row vì RBAC → response `200 { items: [], total: 0 }`. Khô
 
 **Backend:** trong `MasterPlanService.create()`, sau khi resolve `project`:
 ```typescript
-const actorOrgId = ctx.user.contexts?.organization_id;
-const crossOrg = project.organization_id && project.organization_id !== actorOrgId;
+const actorContexts: string[] = ctx.user.contexts ?? [];
+const crossOrg = project.organization_id
+  ? !actorContexts.includes(project.organization_id)
+  : false;
 if (crossOrg) {
   await this.auditLogService.log({
     action: AuditAction.CREATE,        // hoặc enum CROSS_ORG nếu cần mở rộng
@@ -375,14 +430,14 @@ if (crossOrg) {
     newData: {
       project_id: saved.project_id,
       project_org_id: project.organization_id,
-      actor_org_id: actorOrgId,
+      actor_contexts: actorContexts,
     },
   });
 }
 ```
 Dùng `AuditLogService` sẵn có (`common/audit/audit-log.service.ts`). `AuditInterceptor` trên `MasterPlanController` đảm bảo `actor_id`/`actor_name`/`ip` được set qua `getAuditContext()`.
 
-**Frontend:** khi chọn project có `organization_id !== user.contexts.organization_id`, hiện `<Alert variant="warning">` inline (không modal). String từ `project-lookup.strings.ts`:
+**Frontend:** khi chọn project có `organization_id` không thuộc `user.contexts[]`, hiện `<Alert variant="warning">` inline (không modal). String từ `project-lookup.strings.ts`:
 > *"Dự án này thuộc tổ chức **{project.organization_name}** — khác tổ chức hiện tại của bạn."*
 
 ### 7.4 SQL injection — sanitize `q`
@@ -473,12 +528,12 @@ private async calculateBudgetHeadroom(projectId: string): Promise<bigint> {
 
 | # | Index | Phân kỳ | Lý do |
 |---|---|---|---|
-| 1 | `CREATE INDEX CONCURRENTLY idx_projects_code_lower ON projects (LOWER(project_code));` | **V1 (ship ngay)** — ship trong cùng migration `1776300000013` (hoặc migration riêng). | `q` search dùng `LOWER(project_code) LIKE '%...%'` — btree functional index hỗ trợ prefix match `LIKE 'abc%'`. Contains match `%abc%` thì ít hưởng lợi nhưng dataset 10k không bottleneck. |
-| 2 | `CREATE INDEX idx_projects_status ON projects (status) WHERE deleted_at IS NULL;` | **V1** — partial index chỉ index row sống. | Filter `status IN (...)` là entry-point. |
-| 3 | `CREATE INDEX idx_projects_org_status ON projects (organization_id, status) WHERE deleted_at IS NULL;` | **V1** — composite. | Non-admin user filter theo `organization_id` + `status` cùng lúc. |
-| 4 | `CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE INDEX idx_projects_name_trgm ON projects USING gin (LOWER(project_name) gin_trgm_ops);` | **V2 — ship sau khi đo metric ở staging**. | Chỉ cần nếu `project_name ILIKE '%...%'` vượt 100ms ở 10k rows. `pg_trgm` đã được enable ở migration `1776300000033-DocumentControlV21Sprint4` → không cần enable lại. |
+| 1 | `idx_projects_code_lower ON projects (LOWER(project_code))` | **V1** | Prefix match `LIKE 'abc%'` trên mã dự án (ASCII, không cần unaccent). |
+| 2 | `idx_projects_status_active ON projects (status) WHERE deleted_at IS NULL` | **V1** — partial | Filter `status IN (...)` là entry-point, partial chỉ index row sống. |
+| 3 | `idx_projects_org_status ON projects (organization_id, status) WHERE deleted_at IS NULL` | **V1** — composite | Non-admin filter theo `organization_id IN (:...contexts)` + `status` cùng lúc. |
+| 4 | `idx_projects_name_unaccent_trgm ON projects USING gin (public.f_unaccent(LOWER(project_name)) gin_trgm_ops)` | **V1** (elevated từ V2 per C7 override 2026-04-22) | Hỗ trợ `public.f_unaccent(LOWER(name)) LIKE public.f_unaccent(:q)` — bắt buộc để search không dấu nhanh trên 10k rows. `pg_trgm` đã enable từ migration `1776300000033-DocumentControlV21Sprint4`. Đòi hỏi `f_unaccent()` IMMUTABLE wrapper (xem §2.3). |
 
-**Decision:** index #1, #2, #3 ship V1 cùng privilege migration (gộp thành 1 migration hoặc 2 file migration liên tiếp — Dev quyết). Index #4 backlog, ticket `PERF-PROJECT-LOOKUP-TRGM`.
+**Decision:** Toàn bộ 4 index ship V1 trong migration `1776300000013-AddViewAllProjectsPrivilege.ts`. Không còn V2 index cho feature này.
 
 ### 9.3 Query cost — EXPLAIN hint
 
@@ -489,13 +544,20 @@ FROM projects p
 LEFT JOIN organizations o ON o.id = p.organization_id
 WHERE p.status IN ('WON_BID','ACTIVE','ON_HOLD','SETTLING','WARRANTY')
   AND p.deleted_at IS NULL
-  AND p.organization_id = $1
-  AND (LOWER(p.project_code) LIKE '%jdhp%' OR LOWER(p.project_name) LIKE '%jdhp%')
+  AND p.organization_id = ANY($1::uuid[])   -- user.contexts
+  AND (
+    LOWER(p.project_code) LIKE '%jdhp%'
+    OR public.f_unaccent(LOWER(p.project_name)) LIKE public.f_unaccent('%jdhp%')
+  )
 ORDER BY (CASE WHEN LOWER(p.project_code) LIKE 'jdhp%' THEN 0 ELSE 1 END), p.project_code
 LIMIT 20;
 ```
 
-Expect: Bitmap Heap Scan on `idx_projects_org_status` + sort in-memory. Nếu EXPLAIN thấy Seq Scan → bổ sung index #4.
+Expect:
+- Non-admin path: Bitmap Heap Scan dùng `idx_projects_org_status` làm entry → Bitmap OR với `idx_projects_code_lower` (prefix) + `idx_projects_name_unaccent_trgm` (trigram) → sort in-memory → Limit 20.
+- Admin path (`bypassOrgFilter=true`): Seq Scan + `idx_projects_status_active` partial nếu `status` selective. Với 10k rows, full scan vẫn < 50ms.
+
+Nếu vẫn vượt 300ms ở staging → đo tiếp, candidate tối ưu: covering index, materialized view.
 
 ### 9.4 Caching
 
@@ -561,14 +623,14 @@ Chỉ 1 query với `LEFT JOIN organizations`. Không `relations: [...]` (tránh
 **Không cần.** Endpoint mới, form sửa in-place. Backward-compatible (nếu FE deploy chậm → vẫn gửi UUID qua form cũ; nếu BE deploy chậm → FE dropdown fail → toast "Không tải được" + user phải đợi).
 
 ### 11.2 Data migration
-Chỉ seed 1 privilege (idempotent `ON CONFLICT DO NOTHING`). Không backfill data row nào. Index tạo bằng `CONCURRENTLY` → không lock bảng `projects` trong deploy.
+Chỉ seed 1 privilege (idempotent `ON CONFLICT DO NOTHING`) + tạo `f_unaccent()` function + 4 index. Không backfill data row nào. Index tạo **trong transaction migration** (không `CONCURRENTLY` — TypeORM chạy migration trong transaction). Brief lock bảng `projects` ở deploy time dự kiến < 1s với dataset hiện tại (< 10k rows).
 
 ### 11.3 Deprecation
 `GET /projects` giữ nguyên (dùng cho danh sách đầy đủ ở trang `/projects`). Không deprecate.
 
 ### 11.4 Thứ tự deploy
 
-1. **Migration chạy trước** (`npm run migration:run`) — tạo privilege + 3 index. `SeedService.onApplicationBootstrap` sẽ auto-gán privilege cho SUPER_ADMIN ở lần khởi động kế tiếp.
+1. **Migration chạy trước** (`npm run migration:run`) — tạo `f_unaccent()` + privilege + 4 index. `SeedService.onApplicationBootstrap` sẽ auto-gán privilege cho SUPER_ADMIN ở lần khởi động kế tiếp.
 2. **Backend deploy** — expose endpoint `/projects/lookup`.
 3. **Frontend deploy** — UI mới sử dụng endpoint.
 4. **Smoke test** (test-rules.md Bước 4) — 5 bullet §10.4 ở staging.
@@ -581,77 +643,75 @@ Chỉ seed 1 privilege (idempotent `ON CONFLICT DO NOTHING`). Không backfill da
 
 ---
 
-## 12. Open Technical Concerns
+## 12. Open Technical Concerns — Tech Advisor đã duyệt (2026-04-22)
 
-> **Lưu ý:** Các concern dưới đây KHÔNG tự sửa ở Gate 2. Flag cho Tech Advisor quyết trước/sau Gate 3.
+> **Status:** C1/C3/C7 → RESOLVED với override; C2/C4/C5/C6 → ACCEPT nguyên trạng; không còn concern nào chặn Gate 3.
 
 ### C1 — BA_SPEC response shape `status: 'success'` vs TransformInterceptor `status: true`
 
-BA_SPEC §5 mô tả response `{ status: 'success', message, data }`. Thực tế `TransformInterceptor` (`common/interceptors/transform.interceptor.ts:42`) hardcode `status: true` (boolean). SA chọn tuân theo interceptor hiện có → **FE phải mirror `status: boolean`**.
+BA_SPEC §5 mô tả response `{ status: 'success', message, data }`. Thực tế `TransformInterceptor` (`common/interceptors/transform.interceptor.ts:42`) hardcode `status: true` (boolean).
 
-**Đề xuất:** cập nhật BA_SPEC §5 ở Gate 1 revision, hoặc đổi `TransformInterceptor` sang string `'success' | 'error'`. Việc sau tác động toàn hệ thống — không đụng trong PR này.
+**✅ RESOLVED (2026-04-22):** Tech Advisor duyệt giữ `status: true` (boolean). BA_SPEC §5 sẽ revise riêng để đồng bộ. Không đổi `TransformInterceptor` (tác động toàn hệ thống). FE mirror `status: boolean`.
 
 ### C2 — `project.budget` vs `project.total_budget` cho helper `calculateBudgetHeadroom`
 
 BA_SPEC BR-MPL-04 nói dùng `project.total_budget`. Thực tế entity `Project` có `budget` (decimal 15,2) và `contract_value` (decimal 18,2). Không có field nào tên `total_budget`.
 
-**SA tạm dùng `project.budget`** (xem §8.3 pseudo-code). Nếu nghiệp vụ cần `contract_value` (tổng giá trị hợp đồng CĐT) hay sum của các `project_budgets.planned_amount` → cần Tech Advisor chốt trong Gate 3.
+**✅ RESOLVED (2026-04-22):** V1 dùng `project.budget` (xem §8.3 pseudo-code). Backlog ticket **`BUDGET-HEADROOM-ACCURATE-CALC`** cho V2 — xem xét dùng `contract_value` hoặc sum `project_budgets.planned_amount` sau khi có feedback nghiệp vụ.
 
-### C3 — `user.contexts.organization_id` — nguồn field chưa rõ
+### C3 — `user.contexts` shape
 
-JWT payload (`jwt.strategy.ts:28`) có `contexts` nhưng không schema rõ ràng. BA_SPEC giả định `user.organization_id`. SA dùng `user.contexts?.organization_id` nhưng chưa verify field này có luôn được set khi login hay không.
-
-**Action Gate 3/4:** Dev kiểm tra `AuthService.login()` xem aggregate `contexts` payload thế nào. Nếu không có → fallback query `employee.department_id` từ `user.employeeId`.
+**✅ RESOLVED (2026-04-22):** Verified qua `auth/types/authenticated-request.ts:9` và `auth/jwt.strategy.ts:29` — `contexts: string[]` là **mảng organization_ids** user có quyền truy cập, KHÔNG phải object. SA design đã update: filter `p.organization_id IN (:...contexts)` thay vì `= :orgId`. Trường hợp `contexts=[]` → `andWhere('1=0')` để trả rỗng (anti-leak). Dev Gate 4 vẫn verify `AuthService.login()` aggregate `contexts` đúng shape khi login — không assume.
 
 ### C4 — `cmdk` chưa có trong frontend dependencies
 
-`wms-frontend/package.json` không có `cmdk`, và `components/ui/command.tsx` chưa tồn tại. Dev Gate 4 phải `npm install cmdk` + paste chuẩn shadcn Command component. Không phải concern nghiệp vụ nhưng cần flag cho DevOps Gate 6 verify `package-lock.json` cập nhật đúng.
+**✅ ACCEPT (2026-04-22):** `wms-frontend/package.json` không có `cmdk`, `components/ui/command.tsx` chưa tồn tại. Dev Gate 4 `npm install cmdk` + paste chuẩn shadcn Command component. DevOps Gate 6 verify `package-lock.json` cập nhật.
 
 ### C5 — V2 Org subtree visibility — hook mở rộng
 
-V1 filter `organization_id = user.contexts.organization_id`. `Organization` entity đã có `parent_id` (self-ref). V2 implementation dự kiến:
+V1 filter `organization_id IN (:...contexts)`. `Organization` entity đã có `parent_id` (self-ref). V2 implementation dự kiến:
 
 ```sql
 WITH RECURSIVE org_tree AS (
-  SELECT id FROM organizations WHERE id = :rootId
+  SELECT id FROM organizations WHERE id = ANY($1::uuid[])  -- user.contexts
   UNION ALL
   SELECT o.id FROM organizations o JOIN org_tree ot ON o.parent_id = ot.id
 )
 SELECT ... WHERE p.organization_id IN (SELECT id FROM org_tree)
 ```
 
-**Hook mở rộng:** chỉ cần đổi 1 chỗ trong `ProjectLookupService.search()` — đoạn `andWhere('p.organization_id = :orgId')`. Ticket backlog: `ORG-HIERARCHY-VISIBILITY`.
+**✅ ACCEPT (2026-04-22):** Hook mở rộng — chỉ đổi 1 chỗ trong `ProjectLookupService.search()` (đoạn `andWhere('p.organization_id IN (:...contexts)')`). Ticket backlog: **`ORG-HIERARCHY-VISIBILITY`**.
 
 ### C6 — Quota bảo vệ endpoint `/projects/lookup`
 
-Hệ thống global ThrottlerModule 100 req/60s — đủ cho 1 user typeahead. Nhưng nếu attacker viết bot gõ 100 keystroke/60s × N user bị leak → có thể stress DB.
+**✅ ACCEPT (2026-04-22):** V1 dùng global `ThrottlerModule` (100 req/60s). V2 backlog — nếu staging đo thấy abuse → thêm `@Throttle({ short: { ttl: 10000, limit: 30 } })` override 30 req/10s/user. Ticket backlog: **`THROTTLE-PROJECT-LOOKUP`**.
 
-**Đề xuất (không bắt buộc V1):** thêm `@Throttle({ short: { ttl: 10000, limit: 30 } })` override cho endpoint này = 30 req/10s/user. Ghi chú backlog.
+### C7 — `unaccent` cho search không dấu
 
-### C7 — `search_vector` + `unaccent` đã enable
-
-Migration `1776300000033-DocumentControlV21Sprint4` đã enable `pg_trgm` + `unaccent`. SA **chưa dùng `unaccent`** cho V1 (vì project_code là ASCII, project_name user-input tiếng Việt có dấu nhưng BA_SPEC chỉ yêu cầu case-insensitive, không bắt buộc accent-insensitive).
-
-**Nếu user complain "gõ không dấu không ra dự án có dấu"** → V2 đổi `LOWER(p.project_name) LIKE` thành `unaccent(LOWER(p.project_name)) LIKE unaccent(LOWER(:q))`.
+**✅ RESOLVED (2026-04-22) — OVERRIDE:** Tech Advisor override — bật `unaccent` ngay V1 vì UX critical với user Việt Nam (ERP requirement: gõ không dấu ra project có dấu, và ngược lại). Đã update:
+- §6.1 query — dùng `public.f_unaccent(LOWER(p.project_name)) LIKE public.f_unaccent(:q)`.
+- §2.3 migration — tạo `f_unaccent()` IMMUTABLE SQL wrapper (vì `public.unaccent` default là STABLE → không index được functional).
+- §9.2 index plan — `idx_projects_name_unaccent_trgm` elevate từ V2 lên V1.
+- §9.3 EXPLAIN — reflect query mới.
 
 ---
 
 ## Checklist hoàn thành (theo `.claude/rules/sa-rules.md`)
 
-- [x] Entity và quan hệ Database (ERD) đã xác định (§2) — không đổi schema, chỉ seed privilege + index
+- [x] Entity và quan hệ Database (ERD) đã xác định (§2) — không đổi schema, chỉ seed privilege + f_unaccent + 4 index
 - [x] API Endpoints đã liệt kê đầy đủ contract (§3) — `GET /projects/lookup` full spec
 - [x] Interface và DTOs đã định nghĩa (§3, §4) — `LookupProjectsDto`, `LookupProjectItemDto`, `EntityPickerProps<T>`
 - [x] Clean Architecture folder structure đã rõ ràng (§4, §6) — Domain/Application/Infrastructure/Interface mapping
-- [x] Tối ưu cho truy vấn (§9) — 3 index V1 + 1 index V2 + query plan
+- [x] Tối ưu cho truy vấn (§9) — 4 index V1 (gồm unaccent GIN trigram) + query plan
 - [x] Cross-Stack Sync plan hoàn chỉnh (§5)
 - [x] Error message mapping đầy đủ BR-MPL-05 (§8) — bảng 7 hàng + helper strings
 - [x] Performance target P95 < 300ms có số liệu cụ thể (§9.2)
 - [x] Testing Strategy 6 unit + 5 integration + 5 manual checks (§10)
 - [x] Rollout plan có thứ tự deploy + rollback (§11)
-- [x] Open Technical Concerns 7 items flagged (§12) — không tự quyết
+- [x] Open Technical Concerns — tất cả resolved/accepted (§12)
 
 ---
 
 **Người thiết kế:** SA Agent
-**Review trước Gate 3:** Tech Advisor (Duy) duyệt SA_DESIGN + quyết các Concerns §12
-**Next Gate:** Gate 3 (UI/UX Designer — `UI_SPEC.md`) — chờ approval
+**Revision Gate 2.5 (2026-04-22):** Apply 3 override từ Tech Advisor — C1 annotation, C3 contexts[] fix, C7 unaccent V1
+**Next Gate:** Gate 3 (UI/UX Designer — `UI_SPEC.md`) — đã tiến hành cùng session
