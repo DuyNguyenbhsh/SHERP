@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -11,6 +11,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Employee) private empRepo: Repository<Employee>,
@@ -39,7 +41,10 @@ export class UsersService {
         order: { created_at: 'DESC' },
       });
     } catch (error) {
-      console.error('❌ Lỗi khi lấy danh sách Tài khoản:', error);
+      this.logger.error(
+        `Lỗi khi lấy danh sách Tài khoản: ${(error as Error).message}`,
+        (error as Error).stack,
+      );
       throw new BadRequestException('Lỗi truy xuất dữ liệu từ Database');
     }
   }
@@ -102,9 +107,8 @@ export class UsersService {
       } as Partial<UserRole>);
       await manager.save(UserRole, userRole);
 
-      // Terminal log theo yêu cầu
-      console.log(
-        `✅ Đã tạo tài khoản cho nhân viên ${employee.full_name} với vai trò ${role.role_name}`,
+      this.logger.log(
+        `Đã tạo tài khoản cho nhân viên ${employee.full_name} (role: ${role.role_name})`,
       );
 
       return savedUser;
@@ -158,7 +162,10 @@ export class UsersService {
           organization: fullUser?.employee?.department || null,
         });
       } catch (error) {
-        console.error('❌ Lỗi khi cập nhật Quyền:', error);
+        this.logger.error(
+          `Lỗi khi cập nhật Quyền cho user ${user.id}: ${(error as Error).message}`,
+          (error as Error).stack,
+        );
         // Bắt buộc ném lỗi ra ngoài để Frontend báo đỏ, không cho "Thành công ảo"
         throw new BadRequestException(
           'Không thể lưu Quyền vào Database. Vui lòng kiểm tra lại!',

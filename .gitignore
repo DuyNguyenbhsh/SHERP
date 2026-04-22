@@ -6,3 +6,7 @@ node_modules
 wms-backend/package-lock.json
 wms-frontend/package-lock.json
 .mcp.json
+
+# Local DB backups — không commit vào repo
+backups/
+*.sql.gz

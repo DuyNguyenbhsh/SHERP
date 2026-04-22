@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -10,7 +11,12 @@ import { GlobalExceptionFilter } from './shared/filters/global-exception.filter'
 import { StripEmptyStringsPipe } from './shared/pipes/strip-empty-strings.pipe';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // ── BODY PARSER: nâng giới hạn lên 50MB cho upload Excel/PDF đa dòng ──
+  // Mặc định Nest dùng ~100KB → chặn đa số payload multipart/import.
+  app.useBodyParser('json', { limit: '50mb' });
+  app.useBodyParser('urlencoded', { limit: '50mb', extended: true });
 
   // ── SECURITY & PERFORMANCE ──
   app.use(helmet({ contentSecurityPolicy: false }));
