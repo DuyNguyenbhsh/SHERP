@@ -172,6 +172,7 @@ wms-backend/src/
 ```
 
 **Lý do split 6 module thay vì 1 module khổng lồ:**
+
 - Mỗi module ≤ 500 LOC service → dễ review, dễ test
 - Work Item engine là abstraction chung (feed, notification, reassign) — dùng lại được khi thêm module thứ 5 sau này (ví dụ: audit inspection)
 - Import path rõ ràng: `checklists/` chỉ import `work-items/` (cha), KHÔNG import lẫn nhau
@@ -208,22 +209,22 @@ checklist_item_results  incident_photos  energy_readings
 @Entity('master_plans')
 @Index('IDX_MP_PROJECT_YEAR', ['project_id', 'year'], { unique: true })
 export class MasterPlan {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ length: 40, unique: true }) code: string;            // MP-VCQ7-2026
-  @Column() name: string;
-  @Column({ type: 'uuid' }) project_id: string;                   // loose FK → projects
-  @Column() year: number;
-  @Column({ type: 'date' }) start_date: Date;
-  @Column({ type: 'date' }) end_date: Date;
-  @Column({ type: 'enum', enum: MasterPlanStatus, default: DRAFT }) status: MasterPlanStatus;
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 }) total_budget: number;
-  @Column({ type: 'uuid', nullable: true }) approved_by: string;
-  @Column({ type: 'timestamptz', nullable: true }) approved_at: Date;
-  @Column({ type: 'uuid' }) created_by: string;
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
-  @VersionColumn() version: number;                                // optimistic lock
-  @OneToMany(() => WbsNode, n => n.plan) nodes: WbsNode[];
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 40, unique: true }) code: string // MP-VCQ7-2026
+  @Column() name: string
+  @Column({ type: 'uuid' }) project_id: string // loose FK → projects
+  @Column() year: number
+  @Column({ type: 'date' }) start_date: Date
+  @Column({ type: 'date' }) end_date: Date
+  @Column({ type: 'enum', enum: MasterPlanStatus, default: DRAFT }) status: MasterPlanStatus
+  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 }) total_budget: number
+  @Column({ type: 'uuid', nullable: true }) approved_by: string
+  @Column({ type: 'timestamptz', nullable: true }) approved_at: Date
+  @Column({ type: 'uuid' }) created_by: string
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
+  @VersionColumn() version: number // optimistic lock
+  @OneToMany(() => WbsNode, (n) => n.plan) nodes: WbsNode[]
 }
 ```
 
@@ -234,23 +235,23 @@ export class MasterPlan {
 @Index('IDX_WBS_PLAN_CODE', ['plan_id', 'wbs_code'], { unique: true })
 @Index('IDX_WBS_PARENT', ['parent_id'])
 export class WbsNode {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) plan_id: string;
-  @ManyToOne(() => MasterPlan) @JoinColumn({ name: 'plan_id' }) plan: MasterPlan;
-  @Column({ type: 'uuid', nullable: true }) parent_id: string;    // null = level 0
-  @ManyToOne(() => WbsNode) @JoinColumn({ name: 'parent_id' }) parent: WbsNode;
-  @Column({ length: 20 }) wbs_code: string;                        // "1.1.1.2"
-  @Column({ type: 'smallint' }) level: number;                     // 0..5
-  @Column({ type: 'enum', enum: WbsNodeType }) node_type: WbsNodeType;
-  @Column() name: string;
-  @Column({ type: 'int', default: 0 }) sort_order: number;
-  @Column({ type: 'date', nullable: true }) planned_start: Date;
-  @Column({ type: 'date', nullable: true }) planned_end: Date;
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 }) budget: number;
-  @Column({ type: 'uuid', nullable: true }) responsible_user_id: string;
-  @Column({ default: false }) is_archived: boolean;                // BR-MP-03
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) plan_id: string
+  @ManyToOne(() => MasterPlan) @JoinColumn({ name: 'plan_id' }) plan: MasterPlan
+  @Column({ type: 'uuid', nullable: true }) parent_id: string // null = level 0
+  @ManyToOne(() => WbsNode) @JoinColumn({ name: 'parent_id' }) parent: WbsNode
+  @Column({ length: 20 }) wbs_code: string // "1.1.1.2"
+  @Column({ type: 'smallint' }) level: number // 0..5
+  @Column({ type: 'enum', enum: WbsNodeType }) node_type: WbsNodeType
+  @Column() name: string
+  @Column({ type: 'int', default: 0 }) sort_order: number
+  @Column({ type: 'date', nullable: true }) planned_start: Date
+  @Column({ type: 'date', nullable: true }) planned_end: Date
+  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 }) budget: number
+  @Column({ type: 'uuid', nullable: true }) responsible_user_id: string
+  @Column({ default: false }) is_archived: boolean // BR-MP-03
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
 }
 ```
 
@@ -259,20 +260,20 @@ export class WbsNode {
 ```typescript
 @Entity('task_templates')
 @Index('IDX_TT_NODE', ['wbs_node_id'])
-@Index('IDX_TT_ACTIVE_TYPE', ['is_active', 'work_item_type'])      // recurrence scan
+@Index('IDX_TT_ACTIVE_TYPE', ['is_active', 'work_item_type']) // recurrence scan
 export class TaskTemplate {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) wbs_node_id: string;
-  @ManyToOne(() => WbsNode) @JoinColumn({ name: 'wbs_node_id' }) wbs_node: WbsNode;
-  @Column({ type: 'enum', enum: WorkItemType }) work_item_type: WorkItemType;
-  @Column({ length: 200 }) recurrence_rule: string;                // RRULE RFC 5545
-  @Column({ type: 'uuid', nullable: true }) template_ref_id: string;  // ChecklistTemplate.id nếu CHECKLIST
-  @Column({ type: 'int', default: 24 }) sla_hours: number;
-  @Column({ type: 'varchar', length: 100, nullable: true }) default_assignee_role: string;
-  @Column({ default: true }) is_active: boolean;
-  @Column({ type: 'date', nullable: true }) last_generated_date: Date;  // optimization scan
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) wbs_node_id: string
+  @ManyToOne(() => WbsNode) @JoinColumn({ name: 'wbs_node_id' }) wbs_node: WbsNode
+  @Column({ type: 'enum', enum: WorkItemType }) work_item_type: WorkItemType
+  @Column({ length: 200 }) recurrence_rule: string // RRULE RFC 5545
+  @Column({ type: 'uuid', nullable: true }) template_ref_id: string // ChecklistTemplate.id nếu CHECKLIST
+  @Column({ type: 'int', default: 24 }) sla_hours: number
+  @Column({ type: 'varchar', length: 100, nullable: true }) default_assignee_role: string
+  @Column({ default: true }) is_active: boolean
+  @Column({ type: 'date', nullable: true }) last_generated_date: Date // optimization scan
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
 }
 ```
 
@@ -282,26 +283,29 @@ export class TaskTemplate {
 @Entity('work_items')
 @Index('IDX_WI_PROJECT_DUE_STATUS', ['project_id', 'due_date', 'status'])
 @Index('IDX_WI_ASSIGNEE_STATUS', ['assignee_id', 'status'])
-@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_at'], { unique: true, where: '"task_template_id" IS NOT NULL' })
+@Index('IDX_WI_DEDUP', ['task_template_id', 'scheduled_at'], {
+  unique: true,
+  where: '"task_template_id" IS NOT NULL',
+})
 // ↑ idempotency key cho recurrence engine — BR-MP-06
 export class WorkItem {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'enum', enum: WorkItemType }) work_item_type: WorkItemType;
-  @Column({ type: 'uuid', nullable: true }) subject_id: string;    // FK tới row cụ thể trong bảng con (nullable khi mới sinh)
-  @Column({ type: 'uuid' }) project_id: string;
-  @Column({ length: 200 }) title: string;
-  @Column({ type: 'uuid' }) assignee_id: string;
-  @Column({ type: 'uuid', nullable: true }) task_template_id: string;   // null nếu ad-hoc (Incident)
-  @Column({ type: 'timestamptz', nullable: true }) scheduled_at: Date;   // idempotency (full timestamp — hỗ trợ RRULE BYHOUR=7,14)
-  @Column({ type: 'timestamptz' }) due_date: Date;
-  @Column({ type: 'enum', enum: WorkItemStatus, default: NEW }) status: WorkItemStatus;
-  @Column({ type: 'smallint', default: 0 }) progress_pct: number;        // 0..100
-  @Column({ type: 'uuid', nullable: true }) parent_id: string;           // sub-task (slide 24)
-  @ManyToOne(() => WorkItem) @JoinColumn({ name: 'parent_id' }) parent: WorkItem;
-  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date;
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
-  @VersionColumn() version: number;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'enum', enum: WorkItemType }) work_item_type: WorkItemType
+  @Column({ type: 'uuid', nullable: true }) subject_id: string // FK tới row cụ thể trong bảng con (nullable khi mới sinh)
+  @Column({ type: 'uuid' }) project_id: string
+  @Column({ length: 200 }) title: string
+  @Column({ type: 'uuid' }) assignee_id: string
+  @Column({ type: 'uuid', nullable: true }) task_template_id: string // null nếu ad-hoc (Incident)
+  @Column({ type: 'timestamptz', nullable: true }) scheduled_at: Date // idempotency (full timestamp — hỗ trợ RRULE BYHOUR=7,14)
+  @Column({ type: 'timestamptz' }) due_date: Date
+  @Column({ type: 'enum', enum: WorkItemStatus, default: NEW }) status: WorkItemStatus
+  @Column({ type: 'smallint', default: 0 }) progress_pct: number // 0..100
+  @Column({ type: 'uuid', nullable: true }) parent_id: string // sub-task (slide 24)
+  @ManyToOne(() => WorkItem) @JoinColumn({ name: 'parent_id' }) parent: WorkItem
+  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
+  @VersionColumn() version: number
 }
 ```
 
@@ -312,30 +316,33 @@ export class WorkItem {
 ```typescript
 @Entity('checklist_templates')
 export class ChecklistTemplate {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ length: 40, unique: true }) code: string;              // CKL-HVAC-001
-  @Column() name: string;
-  @Column({ type: 'text', nullable: true }) description: string;
-  @Column({ type: 'enum', enum: ChecklistFrequency }) frequency: ChecklistFrequency;
-  @Column({ length: 50 }) asset_type: string;                       // "ELECTRIC"|"HVAC"|"FIRE"|...
-  @Column({ type: 'varchar', length: 20, default: '1.0' }) doc_version: string;   // link docs/ module
-  @Column({ default: true }) is_active: boolean;
-  @OneToMany(() => ChecklistItemTemplate, i => i.template, { cascade: true }) items: ChecklistItemTemplate[];
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 40, unique: true }) code: string // CKL-HVAC-001
+  @Column() name: string
+  @Column({ type: 'text', nullable: true }) description: string
+  @Column({ type: 'enum', enum: ChecklistFrequency }) frequency: ChecklistFrequency
+  @Column({ length: 50 }) asset_type: string // "ELECTRIC"|"HVAC"|"FIRE"|...
+  @Column({ type: 'varchar', length: 20, default: '1.0' }) doc_version: string // link docs/ module
+  @Column({ default: true }) is_active: boolean
+  @OneToMany(() => ChecklistItemTemplate, (i) => i.template, { cascade: true })
+  items: ChecklistItemTemplate[]
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
 }
 
 @Entity('checklist_item_templates')
 @Index('IDX_CIT_TEMPLATE_ORDER', ['template_id', 'order_index'])
 export class ChecklistItemTemplate {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) template_id: string;
-  @ManyToOne(() => ChecklistTemplate) @JoinColumn({ name: 'template_id' }) template: ChecklistTemplate;
-  @Column({ type: 'int' }) order_index: number;
-  @Column() content: string;
-  @Column({ type: 'enum', enum: ChecklistResultType }) result_type: ChecklistResultType;  // PASS_FAIL | VALUE | PHOTO_ONLY | MIXED
-  @Column({ default: false }) require_photo: boolean;
-  @Column({ length: 20, nullable: true }) value_unit: string;       // "kWh" | "°C" | "bar" | null
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) template_id: string
+  @ManyToOne(() => ChecklistTemplate)
+  @JoinColumn({ name: 'template_id' })
+  template: ChecklistTemplate
+  @Column({ type: 'int' }) order_index: number
+  @Column() content: string
+  @Column({ type: 'enum', enum: ChecklistResultType }) result_type: ChecklistResultType // PASS_FAIL | VALUE | PHOTO_ONLY | MIXED
+  @Column({ default: false }) require_photo: boolean
+  @Column({ length: 20, nullable: true }) value_unit: string // "kWh" | "°C" | "bar" | null
 }
 ```
 
@@ -345,27 +352,29 @@ export class ChecklistItemTemplate {
 @Entity('checklist_instances')
 @Index('IDX_CI_WORK_ITEM', ['work_item_id'], { unique: true })
 export class ChecklistInstance {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) work_item_id: string;                   // back-ref tới work_items.id
-  @Column({ type: 'uuid' }) template_id: string;
-  @CreateDateColumn() created_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date;
-  @OneToMany(() => ChecklistItemResult, r => r.instance) results: ChecklistItemResult[];
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) work_item_id: string // back-ref tới work_items.id
+  @Column({ type: 'uuid' }) template_id: string
+  @CreateDateColumn() created_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date
+  @OneToMany(() => ChecklistItemResult, (r) => r.instance) results: ChecklistItemResult[]
 }
 
 @Entity('checklist_item_results')
 @Index('IDX_CIR_INSTANCE', ['instance_id'])
 export class ChecklistItemResult {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) instance_id: string;
-  @ManyToOne(() => ChecklistInstance) @JoinColumn({ name: 'instance_id' }) instance: ChecklistInstance;
-  @Column({ type: 'uuid' }) item_template_id: string;
-  @Column({ type: 'enum', enum: ChecklistResult }) result: ChecklistResult;  // PASS | FAIL | NA
-  @Column({ type: 'decimal', precision: 18, scale: 3, nullable: true }) value: number;
-  @Column({ type: 'jsonb', default: () => "'[]'" }) photos: PhotoEvidence[];  // {url, category, uploaded_at}
-  @Column({ type: 'text', nullable: true }) notes: string;
-  @Column({ type: 'timestamptz' }) checked_at: Date;
-  @Column({ type: 'uuid' }) checked_by: string;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) instance_id: string
+  @ManyToOne(() => ChecklistInstance)
+  @JoinColumn({ name: 'instance_id' })
+  instance: ChecklistInstance
+  @Column({ type: 'uuid' }) item_template_id: string
+  @Column({ type: 'enum', enum: ChecklistResult }) result: ChecklistResult // PASS | FAIL | NA
+  @Column({ type: 'decimal', precision: 18, scale: 3, nullable: true }) value: number
+  @Column({ type: 'jsonb', default: () => "'[]'" }) photos: PhotoEvidence[] // {url, category, uploaded_at}
+  @Column({ type: 'text', nullable: true }) notes: string
+  @Column({ type: 'timestamptz' }) checked_at: Date
+  @Column({ type: 'uuid' }) checked_by: string
 }
 ```
 
@@ -378,70 +387,70 @@ export class ChecklistItemResult {
 @Index('IDX_INC_PROJECT_STATUS', ['project_id', 'status'])
 @Index('IDX_INC_CODE', ['incident_code'], { unique: true })
 export class Incident {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ length: 40 }) incident_code: string;                    // IC-260418-001
-  @Column({ type: 'uuid' }) work_item_id: string;                   // back-ref
-  @Column() title: string;
-  @Column({ type: 'text' }) description: string;                     // BR-INC-01 ≥ 20 chars
-  @Column({ type: 'uuid' }) project_id: string;
-  @Column({ type: 'enum', enum: IncidentSeverity }) severity: IncidentSeverity;
-  @Column({ type: 'enum', enum: IncidentCategory }) category: IncidentCategory;
-  @Column({ length: 200, nullable: true }) location_text: string;
-  @Column({ type: 'uuid', nullable: true }) related_asset_id: string;
-  @Column({ type: 'uuid' }) reported_by: string;
-  @Column({ type: 'uuid', nullable: true }) assigned_to: string;
-  @Column({ type: 'enum', enum: IncidentStatus, default: NEW }) status: IncidentStatus;
-  @Column({ type: 'timestamptz' }) reported_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) assigned_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) resolved_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) closed_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) due_date: Date;
-  @CreateDateColumn() created_at: Date;
-  @UpdateDateColumn() updated_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 40 }) incident_code: string // IC-260418-001
+  @Column({ type: 'uuid' }) work_item_id: string // back-ref
+  @Column() title: string
+  @Column({ type: 'text' }) description: string // BR-INC-01 ≥ 20 chars
+  @Column({ type: 'uuid' }) project_id: string
+  @Column({ type: 'enum', enum: IncidentSeverity }) severity: IncidentSeverity
+  @Column({ type: 'enum', enum: IncidentCategory }) category: IncidentCategory
+  @Column({ length: 200, nullable: true }) location_text: string
+  @Column({ type: 'uuid', nullable: true }) related_asset_id: string
+  @Column({ type: 'uuid' }) reported_by: string
+  @Column({ type: 'uuid', nullable: true }) assigned_to: string
+  @Column({ type: 'enum', enum: IncidentStatus, default: NEW }) status: IncidentStatus
+  @Column({ type: 'timestamptz' }) reported_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) assigned_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) resolved_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) closed_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) due_date: Date
+  @CreateDateColumn() created_at: Date
+  @UpdateDateColumn() updated_at: Date
 }
 
 @Entity('incident_photos')
 export class IncidentPhoto {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) incident_id: string;
-  @Column({ length: 500 }) url: string;                              // Cloudinary secure_url
-  @Column({ type: 'enum', enum: PhotoCategory }) category: PhotoCategory;  // BEFORE_FIX | AFTER_FIX | EVIDENCE
-  @Column({ type: 'uuid' }) uploaded_by: string;
-  @CreateDateColumn() uploaded_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) incident_id: string
+  @Column({ length: 500 }) url: string // Cloudinary secure_url
+  @Column({ type: 'enum', enum: PhotoCategory }) category: PhotoCategory // BEFORE_FIX | AFTER_FIX | EVIDENCE
+  @Column({ type: 'uuid' }) uploaded_by: string
+  @CreateDateColumn() uploaded_at: Date
 }
 
 @Entity('incident_reopen_requests')
 export class IncidentReopenRequest {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) incident_id: string;
-  @Column({ type: 'uuid' }) requested_by: string;
-  @Column({ type: 'text' }) reason: string;                          // BR-INC-04 ≥ 10 chars
-  @Column({ type: 'enum', enum: ApprovalStatus, default: PENDING }) status: ApprovalStatus;
-  @Column({ type: 'uuid', nullable: true }) approved_by: string;
-  @Column({ type: 'timestamptz', nullable: true }) approved_at: Date;
-  @CreateDateColumn() created_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) incident_id: string
+  @Column({ type: 'uuid' }) requested_by: string
+  @Column({ type: 'text' }) reason: string // BR-INC-04 ≥ 10 chars
+  @Column({ type: 'enum', enum: ApprovalStatus, default: PENDING }) status: ApprovalStatus
+  @Column({ type: 'uuid', nullable: true }) approved_by: string
+  @Column({ type: 'timestamptz', nullable: true }) approved_at: Date
+  @CreateDateColumn() created_at: Date
 }
 
 @Entity('incident_assignee_change_requests')
 export class IncidentAssigneeChangeRequest {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) incident_id: string;
-  @Column({ type: 'uuid' }) requested_by: string;
-  @Column({ type: 'uuid' }) current_assignee_id: string;
-  @Column({ type: 'uuid' }) proposed_assignee_id: string;
-  @Column({ type: 'text' }) reason: string;
-  @Column({ type: 'enum', enum: ApprovalStatus, default: PENDING }) status: ApprovalStatus;
-  @Column({ type: 'uuid', nullable: true }) approved_by: string;
-  @CreateDateColumn() created_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) incident_id: string
+  @Column({ type: 'uuid' }) requested_by: string
+  @Column({ type: 'uuid' }) current_assignee_id: string
+  @Column({ type: 'uuid' }) proposed_assignee_id: string
+  @Column({ type: 'text' }) reason: string
+  @Column({ type: 'enum', enum: ApprovalStatus, default: PENDING }) status: ApprovalStatus
+  @Column({ type: 'uuid', nullable: true }) approved_by: string
+  @CreateDateColumn() created_at: Date
 }
 
 @Entity('incident_comments')
 export class IncidentComment {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) incident_id: string;
-  @Column({ type: 'uuid' }) actor_id: string;
-  @Column({ type: 'text' }) comment: string;
-  @CreateDateColumn() created_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) incident_id: string
+  @Column({ type: 'uuid' }) actor_id: string
+  @Column({ type: 'text' }) comment: string
+  @CreateDateColumn() created_at: Date
 }
 ```
 
@@ -452,48 +461,50 @@ export class IncidentComment {
 @Index('IDX_EM_PROJECT_CUSTOMER', ['project_id', 'customer_id'])
 @Index('IDX_EM_CODE', ['meter_code'], { unique: true })
 export class EnergyMeter {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ length: 40 }) meter_code: string;
-  @Column({ type: 'enum', enum: MeterType }) meter_type: MeterType;  // ELECTRIC | WATER | GAS
-  @Column({ length: 20 }) unit: string;
-  @Column({ type: 'uuid' }) project_id: string;
-  @Column({ type: 'uuid', nullable: true }) customer_id: string;     // loose → customers/ module
-  @Column({ length: 200, nullable: true }) location_text: string;
-  @Column({ type: 'decimal', precision: 18, scale: 3, default: 0 }) baseline_value: number;
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 20 }) alert_threshold_pct: number;  // BR-ENR-02
-  @Column({ default: true }) is_active: boolean;
-  @CreateDateColumn() created_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 40 }) meter_code: string
+  @Column({ type: 'enum', enum: MeterType }) meter_type: MeterType // ELECTRIC | WATER | GAS
+  @Column({ length: 20 }) unit: string
+  @Column({ type: 'uuid' }) project_id: string
+  @Column({ type: 'uuid', nullable: true }) customer_id: string // loose → customers/ module
+  @Column({ length: 200, nullable: true }) location_text: string
+  @Column({ type: 'decimal', precision: 18, scale: 3, default: 0 }) baseline_value: number
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 20 }) alert_threshold_pct: number // BR-ENR-02
+  @Column({ default: true }) is_active: boolean
+  @CreateDateColumn() created_at: Date
 }
 
 @Entity('energy_inspections')
 export class EnergyInspection {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ length: 40, unique: true }) inspection_code: string;     // EN-260418-001
-  @Column({ type: 'uuid' }) work_item_id: string;
-  @Column({ type: 'uuid' }) project_id: string;
-  @Column({ type: 'text', nullable: true }) description: string;
-  @CreateDateColumn() created_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date;
-  @OneToMany(() => EnergyReading, r => r.inspection) readings: EnergyReading[];
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ length: 40, unique: true }) inspection_code: string // EN-260418-001
+  @Column({ type: 'uuid' }) work_item_id: string
+  @Column({ type: 'uuid' }) project_id: string
+  @Column({ type: 'text', nullable: true }) description: string
+  @CreateDateColumn() created_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date
+  @OneToMany(() => EnergyReading, (r) => r.inspection) readings: EnergyReading[]
 }
 
 @Entity('energy_readings')
 @Index('IDX_ER_METER_TS', ['meter_id', 'reading_timestamp'])
 export class EnergyReading {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) inspection_id: string;
-  @ManyToOne(() => EnergyInspection) @JoinColumn({ name: 'inspection_id' }) inspection: EnergyInspection;
-  @Column({ type: 'uuid' }) meter_id: string;
-  @Column({ type: 'decimal', precision: 18, scale: 3 }) previous_reading: number;
-  @Column({ type: 'decimal', precision: 18, scale: 3 }) current_reading: number;
-  @Column({ type: 'decimal', precision: 18, scale: 3 }) delta: number;
-  @Column({ length: 500 }) reading_photo_url: string;                // BR-ENR-03
-  @Column({ type: 'timestamptz' }) reading_timestamp: Date;
-  @Column({ type: 'text', nullable: true }) notes: string;
-  @Column({ default: false }) is_meter_reset: boolean;                // BR-ENR-01 bypass
-  @Column({ default: false }) alert_threshold_exceeded: boolean;
-  @Column({ type: 'uuid', nullable: true }) auto_incident_id: string; // BR-ENR-02 link
-  @CreateDateColumn() created_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) inspection_id: string
+  @ManyToOne(() => EnergyInspection)
+  @JoinColumn({ name: 'inspection_id' })
+  inspection: EnergyInspection
+  @Column({ type: 'uuid' }) meter_id: string
+  @Column({ type: 'decimal', precision: 18, scale: 3 }) previous_reading: number
+  @Column({ type: 'decimal', precision: 18, scale: 3 }) current_reading: number
+  @Column({ type: 'decimal', precision: 18, scale: 3 }) delta: number
+  @Column({ length: 500 }) reading_photo_url: string // BR-ENR-03
+  @Column({ type: 'timestamptz' }) reading_timestamp: Date
+  @Column({ type: 'text', nullable: true }) notes: string
+  @Column({ default: false }) is_meter_reset: boolean // BR-ENR-01 bypass
+  @Column({ default: false }) alert_threshold_exceeded: boolean
+  @Column({ type: 'uuid', nullable: true }) auto_incident_id: string // BR-ENR-02 link
+  @CreateDateColumn() created_at: Date
 }
 ```
 
@@ -503,15 +514,15 @@ export class EnergyReading {
 @Entity('office_tasks')
 @Index('IDX_OT_ASSIGNEE_STATUS', ['assignee_id', 'status'])
 export class OfficeTask {
-  @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ type: 'uuid' }) work_item_id: string;
-  @Column() title: string;
-  @Column({ type: 'text' }) description: string;
-  @Column({ type: 'enum', enum: OfficeTaskPriority, default: MEDIUM }) priority: OfficeTaskPriority;
-  @Column({ type: 'jsonb', default: () => "'[]'" }) attachments: AttachmentRef[];
-  @Column({ type: 'text', nullable: true }) completion_note: string;  // BR-OFC-01 ≥ 10 chars
-  @CreateDateColumn() created_at: Date;
-  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date;
+  @PrimaryGeneratedColumn('uuid') id: string
+  @Column({ type: 'uuid' }) work_item_id: string
+  @Column() title: string
+  @Column({ type: 'text' }) description: string
+  @Column({ type: 'enum', enum: OfficeTaskPriority, default: MEDIUM }) priority: OfficeTaskPriority
+  @Column({ type: 'jsonb', default: () => "'[]'" }) attachments: AttachmentRef[]
+  @Column({ type: 'text', nullable: true }) completion_note: string // BR-OFC-01 ≥ 10 chars
+  @CreateDateColumn() created_at: Date
+  @Column({ type: 'timestamptz', nullable: true }) completed_at: Date
 }
 ```
 
@@ -521,17 +532,17 @@ export class OfficeTask {
 
 Tất cả đặt trong `<module>/domain/logic/` — KHÔNG import TypeORM/NestJS, dễ test isolation.
 
-| File | Hàm chính | Test case tối thiểu |
-|---|---|---|
-| `rrule-parser.logic.ts` | `nextOccurrences(rrule: string, from: Date, to: Date): Date[]` | DAILY/WEEKLY/MONTHLY, exdate, BYDAY, invalid rule throw |
-| `wbs-roll-up.logic.ts` | `rollUpProgress(children: WbsProgressData[]): WbsProgressData` | empty, all-complete, mixed, overdue |
-| `budget-rollup.logic.ts` | `validateBudgetTree(parent, children): BudgetViolation[]` | sum children ≤ parent, exact match, overflow |
-| `checklist-completion.logic.ts` | `computeInstanceStatus(results, itemsTotal): ChecklistStatus + progress_pct` | 0%, 50%, 100% auto-COMPLETED, có FAIL vẫn COMPLETED |
-| `incident-severity.logic.ts` | `shouldBypassWorkHours(severity): boolean` | CRITICAL=true, others=false |
-| `incident-reopen-policy.logic.ts` | `canReopen(status): boolean` | COMPLETED=true, others=false |
-| `energy-delta.logic.ts` | `computeDelta(prev, curr, meterReset, baseline, thresholdPct): {delta, exceeded, shouldAutoIncident}` | normal, meter reset bypass, threshold exceeded |
-| `sla-overdue.logic.ts` | `isOverdue(dueDate, now): boolean` + `overdueHours(due, now)` | before/after due, same second |
-| `office-task-overdue.logic.ts` | `nextReminderAt(dueDate, lastReminderAt): Date` | first reminder, every 24h pattern |
+| File                              | Hàm chính                                                                                             | Test case tối thiểu                                     |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `rrule-parser.logic.ts`           | `nextOccurrences(rrule: string, from: Date, to: Date): Date[]`                                        | DAILY/WEEKLY/MONTHLY, exdate, BYDAY, invalid rule throw |
+| `wbs-roll-up.logic.ts`            | `rollUpProgress(children: WbsProgressData[]): WbsProgressData`                                        | empty, all-complete, mixed, overdue                     |
+| `budget-rollup.logic.ts`          | `validateBudgetTree(parent, children): BudgetViolation[]`                                             | sum children ≤ parent, exact match, overflow            |
+| `checklist-completion.logic.ts`   | `computeInstanceStatus(results, itemsTotal): ChecklistStatus + progress_pct`                          | 0%, 50%, 100% auto-COMPLETED, có FAIL vẫn COMPLETED     |
+| `incident-severity.logic.ts`      | `shouldBypassWorkHours(severity): boolean`                                                            | CRITICAL=true, others=false                             |
+| `incident-reopen-policy.logic.ts` | `canReopen(status): boolean`                                                                          | COMPLETED=true, others=false                            |
+| `energy-delta.logic.ts`           | `computeDelta(prev, curr, meterReset, baseline, thresholdPct): {delta, exceeded, shouldAutoIncident}` | normal, meter reset bypass, threshold exceeded          |
+| `sla-overdue.logic.ts`            | `isOverdue(dueDate, now): boolean` + `overdueHours(due, now)`                                         | before/after due, same second                           |
+| `office-task-overdue.logic.ts`    | `nextReminderAt(dueDate, lastReminderAt): Date`                                                       | first reminder, every 24h pattern                       |
 
 **Nguyên tắc Cấm Fat Service (sa-rules.md #4):** service ở tầng application CHỈ orchestrate — tính toán nghiệp vụ nặng (percentage, threshold, state transition) PHẢI ở domain/logic.
 
@@ -581,13 +592,13 @@ Tất cả đặt trong `<module>/domain/logic/` — KHÔNG import TypeORM/NestJ
 
 ### 4.3 Tại sao Bull + Redis (Upstash) thay vì `@nestjs/schedule` in-process?
 
-| Tiêu chí | `@nestjs/schedule` | Bull + Upstash |
-|---|---|---|
-| Multi-instance safe | ❌ (mỗi replica chạy cron, duplicate) | ✅ (job locked per consumer) |
-| Retry nếu fail | ❌ | ✅ 3 attempts |
-| Visibility (queue length, failed jobs) | ❌ | ✅ Bull Board UI |
-| Horizontal scale | ❌ | ✅ worker n replicas |
-| Cost Upstash free tier | — | ✅ 10K commands/day đủ 270 jobs/ngày |
+| Tiêu chí                               | `@nestjs/schedule`                    | Bull + Upstash                       |
+| -------------------------------------- | ------------------------------------- | ------------------------------------ |
+| Multi-instance safe                    | ❌ (mỗi replica chạy cron, duplicate) | ✅ (job locked per consumer)         |
+| Retry nếu fail                         | ❌                                    | ✅ 3 attempts                        |
+| Visibility (queue length, failed jobs) | ❌                                    | ✅ Bull Board UI                     |
+| Horizontal scale                       | ❌                                    | ✅ worker n replicas                 |
+| Cost Upstash free tier                 | —                                     | ✅ 10K commands/day đủ 270 jobs/ngày |
 
 ### 4.4 RRULE library choice
 
@@ -636,68 +647,68 @@ Tổng: **18 privileges mới**.
 
 ### 5.2 Route matrix
 
-| Method | Route | Controller | Privilege | Ghi chú |
-|---|---|---|---|---|
-| **Master Plan** | | | | |
-| POST | `/master-plan` | MasterPlanController.create | MANAGE_MASTER_PLAN | BR-MP-01 |
-| GET | `/master-plan` | list (paginated, filter project/year/status) | VIEW_MASTER_PLAN | |
-| GET | `/master-plan/:id` | findOne + WBS tree | VIEW_MASTER_PLAN | Query N+1 safe bằng materialized tree |
-| PATCH | `/master-plan/:id` | update | MANAGE_MASTER_PLAN | Block nếu status=ACTIVE cho 1 số field |
-| POST | `/master-plan/:id/approve` | approve → validate `total_budget ≤ sum(project budgets)` qua `validateBudgetRollup()` pure fn, KHÔNG gọi `ProjectsService.checkBudgetLimit` (đó là per-category chi tiêu) | APPROVE_MASTER_PLAN | BR-MP-02 |
-| POST | `/master-plan/:id/close` | close plan → stop recurrence | MANAGE_MASTER_PLAN | BR-MP-07 |
-| POST | `/master-plan/:id/clone` | clone từ năm trước | MANAGE_MASTER_PLAN | tiện lợi US-MP-01 |
-| **WBS Node** | | | | |
-| POST | `/master-plan/:planId/wbs-nodes` | create | MANAGE_MASTER_PLAN | BR-MP-04 budget validate |
-| PATCH | `/master-plan/wbs-nodes/:id` | update | MANAGE_MASTER_PLAN | |
-| POST | `/master-plan/wbs-nodes/:id/archive` | soft delete | MANAGE_MASTER_PLAN | BR-MP-03 |
-| GET | `/master-plan/:planId/wbs-tree` | toàn cây (single query recursive CTE) | VIEW_MASTER_PLAN | |
-| GET | `/master-plan/:planId/dashboard` | KPI roll-up | VIEW_MASTER_PLAN | US-MP-06 |
-| **Task Template** | | | | |
-| POST | `/master-plan/wbs-nodes/:nodeId/task-templates` | attach | MANAGE_MASTER_PLAN | |
-| PATCH | `/master-plan/task-templates/:id` | toggle active, edit recurrence | MANAGE_MASTER_PLAN | |
-| DELETE | `/master-plan/task-templates/:id` | disable | MANAGE_MASTER_PLAN | |
-| POST | `/master-plan/task-templates/:id/preview` | dry-run → list 10 next scheduled_at | MANAGE_MASTER_PLAN | UX helper |
-| **Work Item (polymorphic feed)** | | | | |
-| GET | `/work-items/feed` | daily feed filter (type, status, date range, my) | VIEW_WORK_ITEM | Slide 18-24 |
-| GET | `/work-items/:id` | detail polymorphic (hydrate subject) | VIEW_WORK_ITEM | |
-| POST | `/work-items/:id/reassign` | đổi assignee | MANAGE_MASTER_PLAN | Audit trail |
-| **Checklist Template** | | | | |
-| GET | `/checklist-templates` | list | VIEW_MASTER_PLAN | |
-| POST | `/checklist-templates` | create + items | MANAGE_CHECKLIST_TEMPLATE | |
-| PATCH | `/checklist-templates/:id` | update (bump doc_version) | MANAGE_CHECKLIST_TEMPLATE | |
-| POST | `/checklist-templates/:id/clone` | clone | MANAGE_CHECKLIST_TEMPLATE | |
-| **Checklist Instance** | | | | |
-| GET | `/checklist-instances/:id` | detail | VIEW_WORK_ITEM | |
-| POST | `/checklist-instances/:id/results` | record 1 item result | EXECUTE_CHECKLIST | BR-CHK-01/02/05, auto transition |
-| PATCH | `/checklist-instances/:id/results/:resultId` | sửa trước khi instance COMPLETED | EXECUTE_CHECKLIST | |
-| POST | `/checklist-instances/:id/complete` | force-complete (admin override) | MANAGE_MASTER_PLAN | edge case |
-| GET | `/checklist-instances/export/xlsx` | export multi-record | EXPORT_INVENTORY + VIEW_WORK_ITEM | slide 52-57 |
-| **Incident** | | | | |
-| POST | `/incidents` | create (ad-hoc, ngoài MasterPlan) | REPORT_INCIDENT | BR-INC-01 |
-| GET | `/incidents` | list filter | VIEW_INCIDENT | |
-| GET | `/incidents/:id` | detail + photos + comments | VIEW_INCIDENT | |
-| PATCH | `/incidents/:id/assign` | QLDA giao việc (status → IN_PROGRESS) | ASSIGN_INCIDENT | |
-| POST | `/incidents/:id/photos` | upload ảnh evidence (before/after) | REPORT_INCIDENT \| RESOLVE_INCIDENT | Cloudinary |
-| POST | `/incidents/:id/comments` | add comment | VIEW_INCIDENT | audit trail |
-| POST | `/incidents/:id/resolve` | NVKT báo fixed | RESOLVE_INCIDENT | BR-INC-05 gate |
-| POST | `/incidents/:id/close` | QLDA xác nhận COMPLETED | CLOSE_INCIDENT | kiểm AFTER_FIX photos |
-| POST | `/incidents/:id/reopen-requests` | user yêu cầu mở lại | VIEW_INCIDENT | BR-INC-03 |
-| POST | `/incident-reopen-requests/:id/approve` | QLDA duyệt | APPROVE_INCIDENT_REOPEN | |
-| POST | `/incident-reopen-requests/:id/reject` | QLDA từ chối | APPROVE_INCIDENT_REOPEN | |
-| POST | `/incidents/:id/assignee-change-requests` | NVKT xin chuyển | ASSIGN_INCIDENT | |
-| POST | `/incident-assignee-change-requests/:id/approve` | QLDA duyệt | APPROVE_ASSIGNEE_CHANGE | |
-| GET | `/incidents/:id/export` | .docx per-incident (before/after + timeline) | EXPORT_INCIDENT | slide 36 |
-| **Energy** | | | | |
-| POST | `/energy/meters` | create | MANAGE_ENERGY_METER | |
-| GET | `/energy/meters` | list | VIEW_WORK_ITEM | |
-| PATCH | `/energy/meters/:id` | edit (baseline, threshold) | MANAGE_ENERGY_METER | |
-| GET | `/energy/inspections/:id` | detail + readings | VIEW_WORK_ITEM | |
-| POST | `/energy/inspections/:id/readings` | record 1 reading (multi-meter nhưng mỗi request 1) | EXECUTE_ENERGY_INSPECTION | BR-ENR-01/02/03 |
-| GET | `/energy/reports/export` | .docx filter theo date/project/customer/type | EXPORT_ENERGY_REPORT | slide 69-71 |
-| **Office Task** | | | | |
-| POST | `/office-tasks` | create (ad-hoc hoặc qua MasterPlan) | MANAGE_OFFICE_TASK | |
-| PATCH | `/office-tasks/:id` | update | MANAGE_OFFICE_TASK \| EXECUTE_OFFICE_TASK (self) | |
-| POST | `/office-tasks/:id/complete` | mark DONE (yêu cầu completion_note) | EXECUTE_OFFICE_TASK | BR-OFC-01 |
+| Method                           | Route                                            | Controller                                                                                                                                                                | Privilege                                        | Ghi chú                                |
+| -------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------- |
+| **Master Plan**                  |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/master-plan`                                   | MasterPlanController.create                                                                                                                                               | MANAGE_MASTER_PLAN                               | BR-MP-01                               |
+| GET                              | `/master-plan`                                   | list (paginated, filter project/year/status)                                                                                                                              | VIEW_MASTER_PLAN                                 |                                        |
+| GET                              | `/master-plan/:id`                               | findOne + WBS tree                                                                                                                                                        | VIEW_MASTER_PLAN                                 | Query N+1 safe bằng materialized tree  |
+| PATCH                            | `/master-plan/:id`                               | update                                                                                                                                                                    | MANAGE_MASTER_PLAN                               | Block nếu status=ACTIVE cho 1 số field |
+| POST                             | `/master-plan/:id/approve`                       | approve → validate `total_budget ≤ sum(project budgets)` qua `validateBudgetRollup()` pure fn, KHÔNG gọi `ProjectsService.checkBudgetLimit` (đó là per-category chi tiêu) | APPROVE_MASTER_PLAN                              | BR-MP-02                               |
+| POST                             | `/master-plan/:id/close`                         | close plan → stop recurrence                                                                                                                                              | MANAGE_MASTER_PLAN                               | BR-MP-07                               |
+| POST                             | `/master-plan/:id/clone`                         | clone từ năm trước                                                                                                                                                        | MANAGE_MASTER_PLAN                               | tiện lợi US-MP-01                      |
+| **WBS Node**                     |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/master-plan/:planId/wbs-nodes`                 | create                                                                                                                                                                    | MANAGE_MASTER_PLAN                               | BR-MP-04 budget validate               |
+| PATCH                            | `/master-plan/wbs-nodes/:id`                     | update                                                                                                                                                                    | MANAGE_MASTER_PLAN                               |                                        |
+| POST                             | `/master-plan/wbs-nodes/:id/archive`             | soft delete                                                                                                                                                               | MANAGE_MASTER_PLAN                               | BR-MP-03                               |
+| GET                              | `/master-plan/:planId/wbs-tree`                  | toàn cây (single query recursive CTE)                                                                                                                                     | VIEW_MASTER_PLAN                                 |                                        |
+| GET                              | `/master-plan/:planId/dashboard`                 | KPI roll-up                                                                                                                                                               | VIEW_MASTER_PLAN                                 | US-MP-06                               |
+| **Task Template**                |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/master-plan/wbs-nodes/:nodeId/task-templates`  | attach                                                                                                                                                                    | MANAGE_MASTER_PLAN                               |                                        |
+| PATCH                            | `/master-plan/task-templates/:id`                | toggle active, edit recurrence                                                                                                                                            | MANAGE_MASTER_PLAN                               |                                        |
+| DELETE                           | `/master-plan/task-templates/:id`                | disable                                                                                                                                                                   | MANAGE_MASTER_PLAN                               |                                        |
+| POST                             | `/master-plan/task-templates/:id/preview`        | dry-run → list 10 next scheduled_at                                                                                                                                       | MANAGE_MASTER_PLAN                               | UX helper                              |
+| **Work Item (polymorphic feed)** |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| GET                              | `/work-items/feed`                               | daily feed filter (type, status, date range, my)                                                                                                                          | VIEW_WORK_ITEM                                   | Slide 18-24                            |
+| GET                              | `/work-items/:id`                                | detail polymorphic (hydrate subject)                                                                                                                                      | VIEW_WORK_ITEM                                   |                                        |
+| POST                             | `/work-items/:id/reassign`                       | đổi assignee                                                                                                                                                              | MANAGE_MASTER_PLAN                               | Audit trail                            |
+| **Checklist Template**           |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| GET                              | `/checklist-templates`                           | list                                                                                                                                                                      | VIEW_MASTER_PLAN                                 |                                        |
+| POST                             | `/checklist-templates`                           | create + items                                                                                                                                                            | MANAGE_CHECKLIST_TEMPLATE                        |                                        |
+| PATCH                            | `/checklist-templates/:id`                       | update (bump doc_version)                                                                                                                                                 | MANAGE_CHECKLIST_TEMPLATE                        |                                        |
+| POST                             | `/checklist-templates/:id/clone`                 | clone                                                                                                                                                                     | MANAGE_CHECKLIST_TEMPLATE                        |                                        |
+| **Checklist Instance**           |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| GET                              | `/checklist-instances/:id`                       | detail                                                                                                                                                                    | VIEW_WORK_ITEM                                   |                                        |
+| POST                             | `/checklist-instances/:id/results`               | record 1 item result                                                                                                                                                      | EXECUTE_CHECKLIST                                | BR-CHK-01/02/05, auto transition       |
+| PATCH                            | `/checklist-instances/:id/results/:resultId`     | sửa trước khi instance COMPLETED                                                                                                                                          | EXECUTE_CHECKLIST                                |                                        |
+| POST                             | `/checklist-instances/:id/complete`              | force-complete (admin override)                                                                                                                                           | MANAGE_MASTER_PLAN                               | edge case                              |
+| GET                              | `/checklist-instances/export/xlsx`               | export multi-record                                                                                                                                                       | EXPORT_INVENTORY + VIEW_WORK_ITEM                | slide 52-57                            |
+| **Incident**                     |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/incidents`                                     | create (ad-hoc, ngoài MasterPlan)                                                                                                                                         | REPORT_INCIDENT                                  | BR-INC-01                              |
+| GET                              | `/incidents`                                     | list filter                                                                                                                                                               | VIEW_INCIDENT                                    |                                        |
+| GET                              | `/incidents/:id`                                 | detail + photos + comments                                                                                                                                                | VIEW_INCIDENT                                    |                                        |
+| PATCH                            | `/incidents/:id/assign`                          | QLDA giao việc (status → IN_PROGRESS)                                                                                                                                     | ASSIGN_INCIDENT                                  |                                        |
+| POST                             | `/incidents/:id/photos`                          | upload ảnh evidence (before/after)                                                                                                                                        | REPORT_INCIDENT \| RESOLVE_INCIDENT              | Cloudinary                             |
+| POST                             | `/incidents/:id/comments`                        | add comment                                                                                                                                                               | VIEW_INCIDENT                                    | audit trail                            |
+| POST                             | `/incidents/:id/resolve`                         | NVKT báo fixed                                                                                                                                                            | RESOLVE_INCIDENT                                 | BR-INC-05 gate                         |
+| POST                             | `/incidents/:id/close`                           | QLDA xác nhận COMPLETED                                                                                                                                                   | CLOSE_INCIDENT                                   | kiểm AFTER_FIX photos                  |
+| POST                             | `/incidents/:id/reopen-requests`                 | user yêu cầu mở lại                                                                                                                                                       | VIEW_INCIDENT                                    | BR-INC-03                              |
+| POST                             | `/incident-reopen-requests/:id/approve`          | QLDA duyệt                                                                                                                                                                | APPROVE_INCIDENT_REOPEN                          |                                        |
+| POST                             | `/incident-reopen-requests/:id/reject`           | QLDA từ chối                                                                                                                                                              | APPROVE_INCIDENT_REOPEN                          |                                        |
+| POST                             | `/incidents/:id/assignee-change-requests`        | NVKT xin chuyển                                                                                                                                                           | ASSIGN_INCIDENT                                  |                                        |
+| POST                             | `/incident-assignee-change-requests/:id/approve` | QLDA duyệt                                                                                                                                                                | APPROVE_ASSIGNEE_CHANGE                          |                                        |
+| GET                              | `/incidents/:id/export`                          | .docx per-incident (before/after + timeline)                                                                                                                              | EXPORT_INCIDENT                                  | slide 36                               |
+| **Energy**                       |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/energy/meters`                                 | create                                                                                                                                                                    | MANAGE_ENERGY_METER                              |                                        |
+| GET                              | `/energy/meters`                                 | list                                                                                                                                                                      | VIEW_WORK_ITEM                                   |                                        |
+| PATCH                            | `/energy/meters/:id`                             | edit (baseline, threshold)                                                                                                                                                | MANAGE_ENERGY_METER                              |                                        |
+| GET                              | `/energy/inspections/:id`                        | detail + readings                                                                                                                                                         | VIEW_WORK_ITEM                                   |                                        |
+| POST                             | `/energy/inspections/:id/readings`               | record 1 reading (multi-meter nhưng mỗi request 1)                                                                                                                        | EXECUTE_ENERGY_INSPECTION                        | BR-ENR-01/02/03                        |
+| GET                              | `/energy/reports/export`                         | .docx filter theo date/project/customer/type                                                                                                                              | EXPORT_ENERGY_REPORT                             | slide 69-71                            |
+| **Office Task**                  |                                                  |                                                                                                                                                                           |                                                  |                                        |
+| POST                             | `/office-tasks`                                  | create (ad-hoc hoặc qua MasterPlan)                                                                                                                                       | MANAGE_OFFICE_TASK                               |                                        |
+| PATCH                            | `/office-tasks/:id`                              | update                                                                                                                                                                    | MANAGE_OFFICE_TASK \| EXECUTE_OFFICE_TASK (self) |                                        |
+| POST                             | `/office-tasks/:id/complete`                     | mark DONE (yêu cầu completion_note)                                                                                                                                       | EXECUTE_OFFICE_TASK                              | BR-OFC-01                              |
 
 **Tổng: 46 endpoints** (10 Master Plan/WBS/TaskTemplate + 3 WorkItem + 4 ChecklistTemplate + 5 ChecklistInstance + 12 Incident + 6 Energy + 3 OfficeTask + 3 Export).
 
@@ -712,21 +723,28 @@ Ví dụ cốt lõi:
 ```typescript
 // master-plan/dto/create-task-template.dto.ts
 export class CreateTaskTemplateDto {
-  @ApiProperty({ enum: WorkItemType }) @IsEnum(WorkItemType) work_item_type: WorkItemType;
-  @ApiProperty({ example: 'FREQ=WEEKLY;BYDAY=MO' }) @IsString() @Matches(/^FREQ=/) recurrence_rule: string;
-  @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() template_ref_id?: string;
-  @ApiProperty({ example: 24 }) @IsInt() @Min(1) @Max(720) sla_hours: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() default_assignee_role?: string;
+  @ApiProperty({ enum: WorkItemType }) @IsEnum(WorkItemType) work_item_type: WorkItemType
+  @ApiProperty({ example: 'FREQ=WEEKLY;BYDAY=MO' })
+  @IsString()
+  @Matches(/^FREQ=/)
+  recurrence_rule: string
+  @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() template_ref_id?: string
+  @ApiProperty({ example: 24 }) @IsInt() @Min(1) @Max(720) sla_hours: number
+  @ApiPropertyOptional() @IsOptional() @IsString() default_assignee_role?: string
 }
 
 // checklists/dto/record-item-result.dto.ts
 export class RecordItemResultDto {
-  @ApiProperty({ format: 'uuid' }) @IsUUID() item_template_id: string;
-  @ApiProperty({ enum: ChecklistResult }) @IsEnum(ChecklistResult) result: ChecklistResult;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() value?: number;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() item_template_id: string
+  @ApiProperty({ enum: ChecklistResult }) @IsEnum(ChecklistResult) result: ChecklistResult
+  @ApiPropertyOptional() @IsOptional() @IsNumber() value?: number
   @ApiPropertyOptional({ type: [PhotoEvidenceDto] })
-  @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => PhotoEvidenceDto) photos?: PhotoEvidenceDto[];
-  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) notes?: string;
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PhotoEvidenceDto)
+  photos?: PhotoEvidenceDto[]
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(1000) notes?: string
 }
 ```
 
@@ -742,6 +760,7 @@ export class RecordItemResultDto {
 ### 6.2 `approvals/` (reuse sub-flow)
 
 **Lựa chọn:** tự viết `IncidentReopenRequest` và `IncidentAssigneeChangeRequest` — KHÔNG dùng generic `approvals/` module vì:
+
 1. 2 flow này có schema rất cụ thể (reason, proposed_assignee_id) — generic approval không fit.
 2. State machine 3 trạng thái đơn giản, không cần workflow engine.
 3. Cross-module reference giữ loose.
@@ -768,6 +787,7 @@ Tuy nhiên **reuse** `ApprovalStatus` enum từ `approvals/enums/approval.enum.t
 **Reality check 2026-04-19:** Không có `BudgetService` class riêng. Hàm thực là `ProjectsService.checkBudgetLimit(projectId, categoryId, amount, options?)` tại `projects/projects.service.ts:1004` — hoạt động **per-category** (procurement/outbound transaction), không nhận `plan_id`.
 
 **Scope Master Plan (tách biệt):**
+
 - `MasterPlan.total_budget` là ngân sách tổng annual/facility, **informational**. Khi approve MP: validate `sum(wbs_nodes.budget) ≤ total_budget` qua `validateBudgetRollup()` pure fn (đã có). KHÔNG gọi `checkBudgetLimit`.
 - `WbsNode.budget`: validate sum con ≤ cha bằng `budget-rollup.logic.ts` TRƯỚC khi commit transaction.
 - Hard-limit thực sự enforce ở tầng procurement/outbound (đã có), khi Work Item spawn transaction tài chính — gọi `ProjectsService.checkBudgetLimit()` như các module hiện hữu.
@@ -787,16 +807,16 @@ Tuy nhiên **reuse** `ApprovalStatus` enum từ `approvals/enums/approval.enum.t
 
 ## 7. TRANSACTION BOUNDARIES (BẮT BUỘC — wms-backend/CLAUDE.md §6)
 
-| Thao tác | Lý do transaction | Rollback khi |
-|---|---|---|
-| `MasterPlan.approve` | approve + updateAudit + validateBudgetRollup (sum WBS con ≤ total_budget) | 1 trong 3 fail |
-| `WbsNode.archive` | archive + cascade (check no-instance) | có instance đang NEW |
-| `RecurrenceEngine.generate` | insert work_items + insert subject row + update template.last_generated_date | unique violation → skip gracefully (not rollback, đây là idempotent) |
-| `Checklist.recordResult` | insert result + compute status + update work_item.progress_pct + auto-transition to COMPLETED nếu 100% | |
-| `Incident.resolve` | update status + insert AFTER_FIX photo ref + notify QLDA | thiếu photo |
-| `Incident.close` | update status=COMPLETED + close work_item | không có AFTER_FIX photo (BR-INC-05) |
-| `Incident.reopen-approve` | approve request + reset incident status=NEW + re-create work_item (cascade) | |
-| `Energy.recordReading` | insert reading + nếu threshold exceeded AND **chưa có auto-incident OPEN/IN_PROGRESS/RESOLVED cho `meter_id` trong 24h** → insert Incident + link `auto_incident_id`. Ngược lại: chỉ thêm IncidentComment "Threshold tái diễn" vào auto-incident hiện hữu. Cooldown lookup: `SELECT id FROM incidents WHERE related_meter_id=$1 AND status IN (NEW,IN_PROGRESS,RESOLVED) AND created_at >= now() - interval '24 hours' LIMIT 1`. | |
+| Thao tác                    | Lý do transaction                                                                                                                                                                                                                                                                                                                                                                                                                | Rollback khi                                                         |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `MasterPlan.approve`        | approve + updateAudit + validateBudgetRollup (sum WBS con ≤ total_budget)                                                                                                                                                                                                                                                                                                                                                        | 1 trong 3 fail                                                       |
+| `WbsNode.archive`           | archive + cascade (check no-instance)                                                                                                                                                                                                                                                                                                                                                                                            | có instance đang NEW                                                 |
+| `RecurrenceEngine.generate` | insert work_items + insert subject row + update template.last_generated_date                                                                                                                                                                                                                                                                                                                                                     | unique violation → skip gracefully (not rollback, đây là idempotent) |
+| `Checklist.recordResult`    | insert result + compute status + update work_item.progress_pct + auto-transition to COMPLETED nếu 100%                                                                                                                                                                                                                                                                                                                           |                                                                      |
+| `Incident.resolve`          | update status + insert AFTER_FIX photo ref + notify QLDA                                                                                                                                                                                                                                                                                                                                                                         | thiếu photo                                                          |
+| `Incident.close`            | update status=COMPLETED + close work_item                                                                                                                                                                                                                                                                                                                                                                                        | không có AFTER_FIX photo (BR-INC-05)                                 |
+| `Incident.reopen-approve`   | approve request + reset incident status=NEW + re-create work_item (cascade)                                                                                                                                                                                                                                                                                                                                                      |                                                                      |
+| `Energy.recordReading`      | insert reading + nếu threshold exceeded AND **chưa có auto-incident OPEN/IN_PROGRESS/RESOLVED cho `meter_id` trong 24h** → insert Incident + link `auto_incident_id`. Ngược lại: chỉ thêm IncidentComment "Threshold tái diễn" vào auto-incident hiện hữu. Cooldown lookup: `SELECT id FROM incidents WHERE related_meter_id=$1 AND status IN (NEW,IN_PROGRESS,RESOLVED) AND created_at >= now() - interval '24 hours' LIMIT 1`. |                                                                      |
 
 Dùng `DataSource.transaction(async manager => {...})` pattern — không dùng decorator vì khó trace.
 
@@ -820,6 +840,7 @@ Dùng `DataSource.transaction(async manager => {...})` pattern — không dùng 
 - KHÔNG gán vào role tự động — user seed thủ công qua script hoặc SQL trong dashboard (giống pattern Sales đã làm).
 
 **Ghi chú deploy (deploy-rules.md):**
+
 - Migration chạy trên Neon production — verify `connection error` + `routing fallback` sau deploy.
 - Tái dùng checklist §5 trong DEPLOY.md hiện hữu.
 - **Zero-downtime:** tất cả CREATE TABLE + CREATE INDEX đều safe (không ALTER bảng hiện hữu).
@@ -829,13 +850,13 @@ Dùng `DataSource.transaction(async manager => {...})` pattern — không dùng 
 
 ## 9. NON-FUNCTIONAL / PERFORMANCE
 
-| Yêu cầu | Giải pháp |
-|---|---|
-| Feed "Công việc của tôi" < 300ms p95 | Index `IDX_WI_ASSIGNEE_STATUS` + limit 50 + cursor pagination |
-| Dashboard WBS roll-up < 1s | Materialized view `mv_wbs_progress` refresh daily (hoặc recursive CTE nếu MV overkill cho 20 tòa) — **Phase A: recursive CTE**, MV nếu chậm |
-| Recurrence scan < 5 phút | Bull concurrency=4 + `last_generated_date` filter để skip template đã sinh hôm nay |
-| Export .docx per-incident < 3s | `docx` npm package (streaming), tối đa 10 ảnh thumbnail |
-| Checklist item result insert < 100ms | Simple insert, no heavy join |
+| Yêu cầu                              | Giải pháp                                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Feed "Công việc của tôi" < 300ms p95 | Index `IDX_WI_ASSIGNEE_STATUS` + limit 50 + cursor pagination                                                                               |
+| Dashboard WBS roll-up < 1s           | Materialized view `mv_wbs_progress` refresh daily (hoặc recursive CTE nếu MV overkill cho 20 tòa) — **Phase A: recursive CTE**, MV nếu chậm |
+| Recurrence scan < 5 phút             | Bull concurrency=4 + `last_generated_date` filter để skip template đã sinh hôm nay                                                          |
+| Export .docx per-incident < 3s       | `docx` npm package (streaming), tối đa 10 ảnh thumbnail                                                                                     |
+| Checklist item result insert < 100ms | Simple insert, no heavy join                                                                                                                |
 
 ---
 
@@ -866,10 +887,10 @@ entities/
   office-task/              # OfficeTask types
 ```
 
-+ Enum mirror trong `wms-frontend/src/shared/enums/` cho tất cả enum mới.
-+ Privilege constants trong `wms-frontend/src/shared/auth/privileges.ts` — thêm 18 giá trị.
-+ Sidebar section mới "Master Plan" (gộp 4 module con dưới).
-+ 5 pages Phase A: `MasterPlansListPage`, `MasterPlanDetailPage` (tabs: Overview | WBS | Templates | Dashboard | Instances), `MyWorkItemsPage` (feed), `IncidentsPage`, `EnergyMetersPage`.
+- Enum mirror trong `wms-frontend/src/shared/enums/` cho tất cả enum mới.
+- Privilege constants trong `wms-frontend/src/shared/auth/privileges.ts` — thêm 18 giá trị.
+- Sidebar section mới "Master Plan" (gộp 4 module con dưới).
+- 5 pages Phase A: `MasterPlansListPage`, `MasterPlanDetailPage` (tabs: Overview | WBS | Templates | Dashboard | Instances), `MyWorkItemsPage` (feed), `IncidentsPage`, `EnergyMetersPage`.
 
 **UI không làm trong Phase A:** mobile (HDSD native), offline, camera-direct enforcement — xem BA_SPEC §6.
 
@@ -877,12 +898,12 @@ entities/
 
 ## 12. TESTING STRATEGY (test-rules.md)
 
-| Loại test | Scope | Target coverage |
-|---|---|---|
-| Unit — domain/logic | 9 pure function files | 100% |
-| Unit — service | RecurrenceEngine idempotency, ChecklistResult auto-transition, EnergyReading threshold | ≥ 80% |
-| Integration (supertest) | Happy path cho 8 US, + 2 sub-flow approval, + 1 budget overflow (BR-MP-04) | ≥ 5 flow |
-| E2E | Manual verification theo test-rules.md §Manual Verification Check | Bước 1-4 full |
+| Loại test               | Scope                                                                                  | Target coverage |
+| ----------------------- | -------------------------------------------------------------------------------------- | --------------- |
+| Unit — domain/logic     | 9 pure function files                                                                  | 100%            |
+| Unit — service          | RecurrenceEngine idempotency, ChecklistResult auto-transition, EnergyReading threshold | ≥ 80%           |
+| Integration (supertest) | Happy path cho 8 US, + 2 sub-flow approval, + 1 budget overflow (BR-MP-04)             | ≥ 5 flow        |
+| E2E                     | Manual verification theo test-rules.md §Manual Verification Check                      | Bước 1-4 full   |
 
 **Test ước tính:** 60-80 test mới (matched với Sales module scale đã PASS 48/48).
 
@@ -890,13 +911,13 @@ entities/
 
 ## 13. RISK & MITIGATION
 
-| Rủi ro | Ảnh hưởng | Mitigation |
-|---|---|---|
-| Polymorphic `work_items.subject_id` inconsistent (orphan row) | Query fail khi hydrate | Hard rule: tạo work_item + subject trong CÙNG transaction |
-| Bull Queue backup khi Redis down | Recurrence không sinh instance | Retry + alert webhook; fallback: admin có nút "Run scan now" để force-generate |
-| WBS tree query deep level 5 chậm với 100 template/tòa × 20 tòa = 2000 leaf | Dashboard lag | Recursive CTE với limit depth + materialized view từ năm 2 |
-| Unique constraint (task_template_id, scheduled_at) conflict khi clone plan | Dup key error | clone logic phải set task_template_id=NEW, không share id |
-| Cloudinary free tier block .pdf/.zip (memory note) | Ảnh upload OK vì jpg/png — không impact | — |
+| Rủi ro                                                                     | Ảnh hưởng                               | Mitigation                                                                     |
+| -------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------ |
+| Polymorphic `work_items.subject_id` inconsistent (orphan row)              | Query fail khi hydrate                  | Hard rule: tạo work_item + subject trong CÙNG transaction                      |
+| Bull Queue backup khi Redis down                                           | Recurrence không sinh instance          | Retry + alert webhook; fallback: admin có nút "Run scan now" để force-generate |
+| WBS tree query deep level 5 chậm với 100 template/tòa × 20 tòa = 2000 leaf | Dashboard lag                           | Recursive CTE với limit depth + materialized view từ năm 2                     |
+| Unique constraint (task_template_id, scheduled_at) conflict khi clone plan | Dup key error                           | clone logic phải set task_template_id=NEW, không share id                      |
+| Cloudinary free tier block .pdf/.zip (memory note)                         | Ảnh upload OK vì jpg/png — không impact | —                                                                              |
 
 ---
 
@@ -930,6 +951,7 @@ entities/
 5. ✅ **Sub-flow approval:** tự viết `IncidentReopenRequest` + `IncidentAssigneeChangeRequest` (reuse `ApprovalStatus` enum từ `approvals/` để tránh duplicate).
 
 **Next gate:** Gate 3 DEV — implementation theo folder map §1, bắt đầu bằng:
+
 - B1: migration + entities + enums + privileges seed
 - B2: domain/logic (pure functions) + unit test 100%
 - B3: Master Plan + WbsNode + TaskTemplate (CRUD cốt lõi)
@@ -963,6 +985,7 @@ sort_order      int DEFAULT 0
 is_active       bool DEFAULT true
 created_at/updated_at
 ```
+
 IDX: `IDX_FS_ACTIVE` (is_active, sort_order)
 
 #### 15.1.2. `facility_equipment_items` (MỚI — master data con)
@@ -976,6 +999,7 @@ name_en         varchar(200)
 sort_order      int DEFAULT 0
 is_active       bool DEFAULT true
 ```
+
 IDX: `IDX_FEI_SYSTEM` (system_id, sort_order)
 
 #### 15.1.3. `task_templates` (EXTEND — thêm 6 cột)
@@ -990,12 +1014,15 @@ IDX: `IDX_FEI_SYSTEM` (system_id, sort_order)
 + regulatory_refs         jsonb NOT NULL DEFAULT '[]'::jsonb   -- array string
 + allow_adhoc_trigger     bool NOT NULL DEFAULT false          -- BR-MP-10 Y/Urgent
 ```
+
 IDX:
+
 - `IDX_TT_SYSTEM` (system_id)
 - `IDX_TT_EXECUTOR` (executor_party)
 - `IDX_TT_FREQ` (freq_code) — dùng cho report group-by
 
 CHECK:
+
 - `CK_TT_CONTRACTOR_NAME`: `executor_party IN ('CONTRACTOR','MIXED')` ⇒ `contractor_name IS NOT NULL`
 - `CK_TT_FREQ_CODE`: `freq_code IN ('D','W','BW','M','Q','BiQ','HY','Y','Y_URGENT')` hoặc NULL
 
@@ -1068,50 +1095,52 @@ allow_adhoc_trigger?: boolean;
 
 ### 15.3. Endpoints mới
 
-| Method | Path | Privilege | Mô tả |
-|---|---|---|---|
-| GET | `/master-data/facility-systems` | — (auth) | List system catalog |
-| POST | `/master-data/facility-systems` | `MANAGE_MASTER_DATA` | Create |
-| GET | `/master-data/facility-equipment-items?system_id=…` | — | List nested |
-| POST | `/master-data/facility-equipment-items` | `MANAGE_MASTER_DATA` | Create |
-| GET | `/master-plan/:planId/annual-grid?year=2026` | `VIEW_MASTER_PLAN` | Trả về matrix planned (RRULE expand) + actual (work_items status). Schema xem §15.4 |
-| GET | `/master-plan/:planId/export-xlsx?year=2026&lang=vi` | `VIEW_MASTER_PLAN` | Response `application/vnd.openxmlformats-…`, file name `MasterPlan_{planCode}_{year}.xlsx` |
-| POST | `/master-plan/templates/clone` body `{ templateId, planName, projectId, year }` | `MANAGE_MASTER_PLAN` | Phase B |
+| Method | Path                                                                            | Privilege            | Mô tả                                                                                      |
+| ------ | ------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| GET    | `/master-data/facility-systems`                                                 | — (auth)             | List system catalog                                                                        |
+| POST   | `/master-data/facility-systems`                                                 | `MANAGE_MASTER_DATA` | Create                                                                                     |
+| GET    | `/master-data/facility-equipment-items?system_id=…`                             | —                    | List nested                                                                                |
+| POST   | `/master-data/facility-equipment-items`                                         | `MANAGE_MASTER_DATA` | Create                                                                                     |
+| GET    | `/master-plan/:planId/annual-grid?year=2026`                                    | `VIEW_MASTER_PLAN`   | Trả về matrix planned (RRULE expand) + actual (work_items status). Schema xem §15.4        |
+| GET    | `/master-plan/:planId/export-xlsx?year=2026&lang=vi`                            | `VIEW_MASTER_PLAN`   | Response `application/vnd.openxmlformats-…`, file name `MasterPlan_{planCode}_{year}.xlsx` |
+| POST   | `/master-plan/templates/clone` body `{ templateId, planName, projectId, year }` | `MANAGE_MASTER_PLAN` | Phase B                                                                                    |
 
 ### 15.4. Response shape Annual Grid
 
 ```ts
 interface AnnualGridResponse {
-  year: number;                     // 2026
-  plan_id: string;
-  weeks: { iso_week: number; start: string; end: string }[];  // length 52 or 53
+  year: number // 2026
+  plan_id: string
+  weeks: { iso_week: number; start: string; end: string }[] // length 52 or 53
   rows: Array<{
-    task_template_id: string;
-    system: { id: string; name_vi: string; name_en: string };
-    equipment_item: { id: string; name_vi: string; name_en: string } | null;
-    task_name_vi: string;
-    task_name_en: string | null;
-    executor_party: ExecutorParty;
-    contractor_name: string | null;
-    freq_code: string | null;
-    regulatory_refs: string[];
+    task_template_id: string
+    system: { id: string; name_vi: string; name_en: string }
+    equipment_item: { id: string; name_vi: string; name_en: string } | null
+    task_name_vi: string
+    task_name_en: string | null
+    executor_party: ExecutorParty
+    contractor_name: string | null
+    freq_code: string | null
+    regulatory_refs: string[]
     cells: Array<{
-      iso_week: number;
-      planned: boolean;              // RRULE chứa tuần này?
-      actual_status: 'NONE' | 'ON_TIME' | 'LATE' | 'MISSED' | 'UPCOMING';
-      instance_ids: string[];        // work_items trong tuần
-    }>;
-  }>;
+      iso_week: number
+      planned: boolean // RRULE chứa tuần này?
+      actual_status: 'NONE' | 'ON_TIME' | 'LATE' | 'MISSED' | 'UPCOMING'
+      instance_ids: string[] // work_items trong tuần
+    }>
+  }>
 }
 ```
 
 ### 15.5. Service: `AnnualGridService`
 
 Thuộc `src/master-plan/annual-grid.service.ts`. Dependencies inject:
+
 - `TaskTemplateRepository`, `WorkItemRepository`
 - `RrulesetBuilder` (pure function tại `domain/logic/rrule-expand.ts`)
 
 Algorithm:
+
 1. Load all TaskTemplate thuộc plan (via WBS tree, deep).
 2. Với mỗi template: gọi `expandRruleToIsoWeeks(rrule_text, year)` → set `planned_weeks`.
 3. Query `work_items` WHERE plan_id + year range → group by (template_id, iso_week).
@@ -1124,6 +1153,7 @@ Complexity: O(templates × 52). Với 2000 templates × 52 = 104K cells, trả v
 Thư viện: `exceljs@4.4.0` (đã stable, BSD-3).
 
 Layout sheet (khớp format user):
+
 - Row 1-3: Title merged cells — "KẾ HOẠCH VẬN HÀNH BẢO TRÌ / OPERATION & MAINTENANCE PLAN — NĂM: {year} — DỰ ÁN: {project_name}".
 - Row 4: Header bilingual (STT | HỆ THỐNG | HẠNG MỤC | CÔNG VIỆC | THỰC HIỆN | TẦN SUẤT | Jan-W1 … Dec-W4 | GHI CHÚ).
 - Row 5-N: data rows. Merge cell cho cột System/Equipment khi nhiều task cùng group.
@@ -1133,12 +1163,12 @@ Layout sheet (khớp format user):
 
 ### 15.7. Migration plan bổ sung
 
-| # | Migration | Mô tả |
-|---|---|---|
-| `1776300000010` | `FacilitySystemsCatalog` | 2 bảng `facility_systems` + `facility_equipment_items` + enum `task_executor_party` + seed 11 system + 40 equipment items. |
-| `1776300000011` | `TaskTemplateBilingualExecutor` | ALTER task_templates thêm 8 cột (§15.1.3), backfill `executor_party='INTERNAL'` cho row cũ. |
-| `1776300000012` | `MasterPlanSignOff` | ALTER master_plans thêm 3 cột sign-off. |
-| `1776300000013` | `MasterPlanTemplates` | (Phase B scaffold) bảng `master_plan_templates` + add col `template_id` lên wbs_nodes + task_templates. |
+| #               | Migration                       | Mô tả                                                                                                                      |
+| --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `1776300000010` | `FacilitySystemsCatalog`        | 2 bảng `facility_systems` + `facility_equipment_items` + enum `task_executor_party` + seed 11 system + 40 equipment items. |
+| `1776300000011` | `TaskTemplateBilingualExecutor` | ALTER task_templates thêm 8 cột (§15.1.3), backfill `executor_party='INTERNAL'` cho row cũ.                                |
+| `1776300000012` | `MasterPlanSignOff`             | ALTER master_plans thêm 3 cột sign-off.                                                                                    |
+| `1776300000013` | `MasterPlanTemplates`           | (Phase B scaffold) bảng `master_plan_templates` + add col `template_id` lên wbs_nodes + task_templates.                    |
 
 **Rollback:** Mọi migration ALTER phải kèm `down()` drop cột. Phase A chạy 10-11-12 trước khi deploy Master Plan production; 13 skip tới Phase B.
 
@@ -1151,6 +1181,7 @@ Layout sheet (khớp format user):
 ### 15.9. Cross-stack frontend impact (delta §11)
 
 File frontend cần thêm/đổi:
+
 - `entities/facility-system/` — types + 2 hook (`useFacilitySystems`, `useFacilityEquipmentItems`).
 - `entities/master-plan/types.ts` — thêm field vào `TaskTemplate`, `MasterPlan`.
 - `features/master-plan/use-annual-grid.ts` — hook fetch grid.
