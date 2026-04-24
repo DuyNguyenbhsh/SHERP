@@ -1,8 +1,31 @@
+import { AlertTriangle } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ProjectPicker } from '@/entities/project'
 import { PROJECT_LOOKUP_STRINGS as S } from '@/features/master-plan/constants/project-lookup.strings'
-import type { MasterPlanFormState } from './MasterPlanFormDialog.types'
+import { formatVndBigint, type MasterPlanFormState } from './MasterPlanFormDialog.types'
+
+interface BudgetWarningBannerProps {
+  headroom: string
+}
+
+/**
+ * Soft budget warning banner surfaced after POST /master-plan returns
+ * { warning: true, headroom }. Non-blocking; user acks via dialog footer.
+ */
+export function BudgetWarningBanner({ headroom }: BudgetWarningBannerProps): React.JSX.Element {
+  return (
+    <Alert className="bg-warning/10 border-warning text-warning-foreground">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>{S.BUDGET_WARNING_TITLE}</AlertTitle>
+      <AlertDescription>
+        {S.BUDGET_WARNING_BODY(formatVndBigint(headroom))}
+        <p className="mt-2 text-sm">{S.BUDGET_WARNING_SAVED_NOTICE}</p>
+      </AlertDescription>
+    </Alert>
+  )
+}
 
 interface FormFieldsProps {
   form: MasterPlanFormState

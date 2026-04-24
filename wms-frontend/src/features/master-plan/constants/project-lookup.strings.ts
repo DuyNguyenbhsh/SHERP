@@ -33,14 +33,17 @@ export const PROJECT_LOOKUP_STRINGS = {
   // Toggle
   TOGGLE_INCLUDE_INACTIVE: 'Hiển thị dự án đã đóng/huỷ',
 
-  // Cross-org banner
-  CROSS_ORG_PREFIX: 'Dự án thuộc đơn vị:',
+  // Organization label on each picker row (shown for every item that exposes organization_name).
+  ORG_PREFIX: 'Đơn vị:',
 
   // Budget warning banner
   BUDGET_WARNING_TITLE: 'Ngân sách vượt mức',
   BUDGET_WARNING_BODY: (headroomVnd: string): string =>
     `Ngân sách Master Plan đang sát/vượt ngưỡng an toàn. Hạn mức còn lại: ${headroomVnd} VND.`,
   BUDGET_WARNING_ACK: 'Đã hiểu, tiếp tục',
+  // Budget warning — UX revision post-4B-review
+  BUDGET_WARNING_SAVED_NOTICE: 'Master Plan đã được lưu. Bạn có thể xem lại trong danh sách.',
+  BUDGET_WARNING_CLOSE: 'Đóng',
 
   // Errors (map từ backend error codes)
   ERROR_VALIDATION: 'Từ khoá không hợp lệ',

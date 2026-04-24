@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dialog'
 import { useCreateMasterPlan, useUpdateMasterPlan, type MasterPlan } from '@/entities/master-plan'
 import { getErrorMessage } from '@/shared/api/axios'
-import { MasterPlanFormFields } from './MasterPlanFormDialog.helpers'
+import { PROJECT_LOOKUP_STRINGS as S } from '@/features/master-plan/constants/project-lookup.strings'
+import { BudgetWarningBanner, MasterPlanFormFields } from './MasterPlanFormDialog.helpers'
 import type { MasterPlanFormState } from './MasterPlanFormDialog.types'
 
 interface Props {
@@ -38,8 +39,10 @@ export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): Rea
 
   const [form, setForm] = useState<MasterPlanFormState>(emptyForm)
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [budgetWarning, setBudgetWarning] = useState<{ headroom: string } | null>(null)
 
   useEffect(() => {
+    setBudgetWarning(null)
     if (target) {
       setForm({
         code: target.code,
@@ -69,17 +72,30 @@ export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): Rea
       start_date: form.start_date || undefined,
       end_date: form.end_date || undefined,
     }
-    const handlers = {
-      onSuccess: () => {
-        toast.success(isEdit ? 'Đã cập nhật Master Plan' : 'Đã tạo Master Plan')
-        onOpenChange(false)
-      },
-      onError: (err: unknown) => toast.error(getErrorMessage(err, 'Thao tác thất bại')),
-    }
     if (isEdit && target) {
-      updateMut.mutate({ id: target.id, data: payload }, handlers)
+      updateMut.mutate(
+        { id: target.id, data: payload },
+        {
+          onSuccess: () => {
+            toast.success('Đã cập nhật Master Plan')
+            onOpenChange(false)
+          },
+          onError: (err: unknown) => toast.error(getErrorMessage(err, 'Thao tác thất bại')),
+        },
+      )
     } else {
-      createMut.mutate(payload, handlers)
+      createMut.mutate(payload, {
+        onSuccess: (result) => {
+          if (result.warning && result.headroom) {
+            // Plan saved, but budget exceeded — show non-blocking ack banner.
+            setBudgetWarning({ headroom: result.headroom })
+            return
+          }
+          toast.success('Đã tạo Master Plan')
+          onOpenChange(false)
+        },
+        onError: (err: unknown) => toast.error(getErrorMessage(err, 'Thao tác thất bại')),
+      })
     }
   }
 
@@ -103,16 +119,30 @@ export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): Rea
             setIncludeInactive={setIncludeInactive}
             pending={pending}
           />
+          {budgetWarning && <BudgetWarningBanner headroom={budgetWarning.headroom} />}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Huỷ
-          </Button>
-          <Button onClick={handleSubmit} disabled={pending}>
-            {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEdit ? 'Cập nhật' : 'Tạo mới'}
-          </Button>
+          {budgetWarning ? (
+            <Button
+              onClick={() => {
+                toast.success('Đã tạo Master Plan')
+                onOpenChange(false)
+              }}
+            >
+              {S.BUDGET_WARNING_CLOSE}
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+                Huỷ
+              </Button>
+              <Button onClick={handleSubmit} disabled={pending}>
+                {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isEdit ? 'Cập nhật' : 'Tạo mới'}
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -11,8 +11,6 @@ interface ProjectPickerProps {
   onChange: (id: string | null, project: LookupProjectItem | null) => void
   /** Show inactive (DRAFT, BIDDING, LOST_BID, SETTLED, RETENTION_RELEASED, CANCELED) projects. Default false. */
   includeInactive?: boolean
-  /** Show cross-org hint when selected project.organization_id != this context. */
-  currentOrgId?: string | null
   disabled?: boolean
   id?: string
   placeholder?: string
@@ -69,7 +67,6 @@ export function ProjectPicker({
   value,
   onChange,
   includeInactive = false,
-  currentOrgId,
   disabled = false,
   id,
   placeholder,
@@ -80,32 +77,25 @@ export function ProjectPicker({
   )
 
   const renderItem = useCallback(
-    (item: LookupProjectItem): React.JSX.Element => {
-      const isCrossOrg =
-        currentOrgId !== undefined &&
-        currentOrgId !== null &&
-        item.organization_id !== null &&
-        item.organization_id !== currentOrgId
-      return (
-        <div className="flex items-center justify-between gap-2 w-full">
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-medium">{item.project_code}</span>
-              <span className="text-sm truncate">— {item.project_name}</span>
-            </div>
-            {isCrossOrg && item.organization_name && (
-              <span className="text-xs text-muted-foreground">
-                {S.CROSS_ORG_PREFIX} {item.organization_name}
-              </span>
-            )}
+    (item: LookupProjectItem): React.JSX.Element => (
+      <div className="flex items-center justify-between gap-2 w-full">
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-medium">{item.project_code}</span>
+            <span className="text-sm truncate">— {item.project_name}</span>
           </div>
-          <Badge variant={STATUS_VARIANT[item.status]} className="shrink-0">
-            {STATUS_LABEL[item.status]}
-          </Badge>
+          {item.organization_name && (
+            <span className="text-xs text-muted-foreground">
+              {S.ORG_PREFIX} {item.organization_name}
+            </span>
+          )}
         </div>
-      )
-    },
-    [currentOrgId],
+        <Badge variant={STATUS_VARIANT[item.status]} className="shrink-0">
+          {STATUS_LABEL[item.status]}
+        </Badge>
+      </div>
+    ),
+    [],
   )
 
   const renderSelected = useCallback(
