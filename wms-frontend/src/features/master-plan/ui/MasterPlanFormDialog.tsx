@@ -10,10 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { useCreateMasterPlan, useUpdateMasterPlan, type MasterPlan } from '@/entities/master-plan'
 import { getErrorMessage } from '@/shared/api/axios'
+import { MasterPlanFormFields } from './MasterPlanFormDialog.helpers'
+import type { MasterPlanFormState } from './MasterPlanFormDialog.types'
 
 interface Props {
   open: boolean
@@ -21,20 +21,23 @@ interface Props {
   target?: MasterPlan | null
 }
 
+const emptyForm = (): MasterPlanFormState => ({
+  code: '',
+  name: '',
+  year: new Date().getFullYear(),
+  project_id: '',
+  budget_vnd: '',
+  start_date: '',
+  end_date: '',
+})
+
 export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): React.JSX.Element {
   const createMut = useCreateMasterPlan()
   const updateMut = useUpdateMasterPlan()
   const isEdit = Boolean(target)
 
-  const [form, setForm] = useState({
-    code: '',
-    name: '',
-    year: new Date().getFullYear(),
-    project_id: '',
-    budget_vnd: '',
-    start_date: '',
-    end_date: '',
-  })
+  const [form, setForm] = useState<MasterPlanFormState>(emptyForm)
+  const [includeInactive, setIncludeInactive] = useState(false)
 
   useEffect(() => {
     if (target) {
@@ -48,15 +51,7 @@ export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): Rea
         end_date: target.end_date ?? '',
       })
     } else {
-      setForm({
-        code: '',
-        name: '',
-        year: new Date().getFullYear(),
-        project_id: '',
-        budget_vnd: '',
-        start_date: '',
-        end_date: '',
-      })
+      setForm(emptyForm())
     }
   }, [target, open])
 
@@ -101,68 +96,13 @@ export function MasterPlanFormDialog({ open, onOpenChange, target }: Props): Rea
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Mã *</Label>
-            <Input
-              className="col-span-2"
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-              placeholder="MP-2026-TOWER-A"
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Tên *</Label>
-            <Input
-              className="col-span-2"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Năm *</Label>
-            <Input
-              type="number"
-              className="col-span-2"
-              value={form.year}
-              onChange={(e) => setForm({ ...form, year: Number(e.target.value) })}
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Project UUID *</Label>
-            <Input
-              className="col-span-2"
-              value={form.project_id}
-              onChange={(e) => setForm({ ...form, project_id: e.target.value })}
-              placeholder="a1b2c3d4-..."
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Ngân sách (VND)</Label>
-            <Input
-              className="col-span-2"
-              value={form.budget_vnd}
-              onChange={(e) => setForm({ ...form, budget_vnd: e.target.value })}
-              placeholder="1250000000"
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Ngày bắt đầu</Label>
-            <Input
-              type="date"
-              className="col-span-2"
-              value={form.start_date}
-              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-            />
-          </div>
-          <div className="grid grid-cols-3 items-center gap-3">
-            <Label>Ngày kết thúc</Label>
-            <Input
-              type="date"
-              className="col-span-2"
-              value={form.end_date}
-              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-            />
-          </div>
+          <MasterPlanFormFields
+            form={form}
+            setForm={setForm}
+            includeInactive={includeInactive}
+            setIncludeInactive={setIncludeInactive}
+            pending={pending}
+          />
         </div>
 
         <DialogFooter>
