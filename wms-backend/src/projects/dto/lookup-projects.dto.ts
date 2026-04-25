@@ -45,15 +45,17 @@ export class LookupProjectsDto {
   limit?: number;
 
   @ApiPropertyOptional({
-    description: 'Offset phân trang.',
+    description: 'Offset phân trang (tối đa 10000 — chống DoS scan).',
     example: 0,
     default: 0,
     minimum: 0,
+    maximum: 10000,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(10000)
   offset?: number;
 
   @ApiPropertyOptional({
