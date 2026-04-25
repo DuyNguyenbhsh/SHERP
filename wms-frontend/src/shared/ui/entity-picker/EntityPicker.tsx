@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, ChevronsUpDown } from 'lucide-react'
+import { X, ChevronsUpDown, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
@@ -24,6 +24,7 @@ export function EntityPicker<T extends EntityItemBase>({
   renderSelected,
   placeholder,
   emptyText,
+  errorText,
   minQueryLength = 0,
   debounceMs = 300,
   disabled = false,
@@ -34,6 +35,7 @@ export function EntityPicker<T extends EntityItemBase>({
   const [query, setQuery] = useState('')
   const [items, setItems] = useState<T[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<T | null>(null)
   const hydratedIdRef = useRef<string | null>(null)
   const debouncedQuery = useDebouncedValue(query, debounceMs)
@@ -44,17 +46,22 @@ export function EntityPicker<T extends EntityItemBase>({
     if (!open) return
     if (debouncedQuery.length < minQueryLength) {
       setItems([])
+      setError(null)
       return
     }
     let cancelled = false
 
     setIsLoading(true)
+    setError(null)
     onSearch(debouncedQuery)
       .then((res) => {
         if (!cancelled) setItems(res)
       })
-      .catch(() => {
-        if (!cancelled) setItems([])
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setItems([])
+        setError(errorText ?? emptyText ?? 'Có lỗi xảy ra')
+        console.error('[EntityPicker] search failed:', err)
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -62,7 +69,7 @@ export function EntityPicker<T extends EntityItemBase>({
     return () => {
       cancelled = true
     }
-  }, [debouncedQuery, open, minQueryLength, onSearch])
+  }, [debouncedQuery, open, minQueryLength, onSearch, errorText, emptyText])
 
   // Hydrate selectedItem in edit mode (fetch label once per value).
   // setState here syncs parent's `value` prop (external source) with internal display state.
@@ -149,8 +156,17 @@ export function EntityPicker<T extends EntityItemBase>({
                 <Skeleton className="h-6 w-full" />
               </div>
             )}
-            {!isLoading && items.length === 0 && <CommandEmpty>{emptyText}</CommandEmpty>}
-            {!isLoading && items.length > 0 && (
+            {!isLoading && error && (
+              <div
+                role="alert"
+                className="px-3 py-3 text-sm text-destructive flex items-start gap-2"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+            {!isLoading && !error && items.length === 0 && <CommandEmpty>{emptyText}</CommandEmpty>}
+            {!isLoading && !error && items.length > 0 && (
               <CommandGroup>
                 {items.map((item) => (
                   <CommandItem key={item.id} value={item.id} onSelect={() => handleSelect(item)}>

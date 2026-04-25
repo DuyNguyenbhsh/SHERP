@@ -21,6 +21,8 @@ export interface EntityPickerProps<T extends EntityItemBase> {
   placeholder?: string
   /** Empty-state text when no results. */
   emptyText?: string
+  /** Error-state text when onSearch rejects. Falls back to emptyText if undefined. */
+  errorText?: string
   /** Minimum query length to trigger search. Default 0 (fetch on focus). */
   minQueryLength?: number
   /** Debounce delay in ms. Default 300. */

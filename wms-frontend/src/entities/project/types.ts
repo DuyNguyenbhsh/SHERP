@@ -468,17 +468,3 @@ export interface LookupProjectItem {
   organization_id: string | null
   organization_name: string | null
 }
-
-export interface LookupProjectsResponse {
-  items: LookupProjectItem[]
-  total: number
-  limit: number
-  offset: number
-}
-
-export interface LookupProjectsQuery {
-  q?: string
-  limit?: number
-  offset?: number
-  status_whitelist?: ProjectStatus[]
-}

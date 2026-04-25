@@ -78,6 +78,7 @@ assert(
 assert('ORG_PREFIX present (renamed from CROSS_ORG_PREFIX)', strings.includes('ORG_PREFIX'))
 assert('BUDGET_WARNING_CLOSE present', strings.includes('BUDGET_WARNING_CLOSE'))
 assert('BUDGET_WARNING_SAVED_NOTICE present', strings.includes('BUDGET_WARNING_SAVED_NOTICE'))
+assert('Has ERROR_LOAD_FAILED key', strings.includes('ERROR_LOAD_FAILED'))
 
 console.log(`\n── Result: ${passed} passed, ${failed} failed ──\n`)
 if (failed > 0) process.exit(1)

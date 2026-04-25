@@ -10,7 +10,7 @@ const __dir = dirname(fileURLToPath(import.meta.url))
 const read = (f: string): string => readFileSync(resolve(__dir, '..', f), 'utf8')
 
 const picker = read('ui/project-picker/ProjectPicker.tsx')
-const hook = read('api/useProjectLookup.ts')
+const helper = read('api/fetchProjectById.ts')
 
 let passed = 0
 let failed = 0
@@ -37,18 +37,21 @@ assert(
   !picker.includes('currentOrgId') && !picker.includes('isCrossOrg'),
 )
 assert('Calls fetchProjectById for hydration', picker.includes('onFetchById={fetchProjectById}'))
-
-console.log('\n══ useProjectLookup ══')
-
-assert('Endpoint /projects/lookup', hook.includes('/projects/lookup'))
-assert('Uses status_whitelist (not include_inactive)', hook.includes('status_whitelist'))
 assert(
-  'PROJECT_ACTIVE_STATUSES = 5 statuses',
-  hook.includes('WON_BID') && hook.includes('WARRANTY'),
+  'No swallowed catch in onSearch',
+  !picker.includes('} catch {') && !picker.includes('} catch (_)'),
 )
-assert('fetchProjectById exported', hook.includes('export async function fetchProjectById'))
-assert('fetchProjectById returns null on error', hook.includes('return null'))
-assert('staleTime set', hook.includes('staleTime'))
+assert('Passes errorText to EntityPicker', picker.includes('errorText='))
+
+console.log('\n══ fetchProjectById helper ══')
+
+assert('fetchProjectById exported', helper.includes('export async function fetchProjectById'))
+assert('Calls GET /projects/:id endpoint', helper.includes('`/projects/${id}`'))
+assert('Returns null on error (404/403)', helper.includes('return null'))
+assert(
+  'No useQuery / TanStack import (hook removed)',
+  !helper.includes('@tanstack/react-query') && !helper.includes('useQuery'),
+)
 
 console.log(`\n── Result: ${passed} passed, ${failed} failed ──\n`)
 if (failed > 0) process.exit(1)

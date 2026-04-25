@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { EntityPicker } from '@/shared/ui/entity-picker'
 import { api } from '@/shared/api/axios'
-import { fetchProjectById } from '../../api/useProjectLookup'
+import { fetchProjectById } from '../../api/fetchProjectById'
 import type { LookupProjectItem, ProjectStatus } from '../../types'
 import { PROJECT_LOOKUP_STRINGS as S } from '@/features/master-plan/constants/project-lookup.strings'
 
@@ -53,14 +53,11 @@ async function searchProjects(q: string, includeInactive: boolean): Promise<Look
   if (!includeInactive) {
     params.set('status_whitelist', PROJECT_ACTIVE_STATUSES)
   }
-  try {
-    const { data } = await api.get<{
-      data: { items: LookupProjectItem[] }
-    }>(`/projects/lookup?${params.toString()}`)
-    return data.data.items
-  } catch {
-    return []
-  }
+  // Errors propagate to EntityPicker error state (UI_SPEC §7 State Matrix).
+  const { data } = await api.get<{
+    data: { items: LookupProjectItem[] }
+  }>(`/projects/lookup?${params.toString()}`)
+  return data.data.items
 }
 
 export function ProjectPicker({
@@ -118,6 +115,7 @@ export function ProjectPicker({
       renderSelected={renderSelected}
       placeholder={placeholder ?? S.PLACEHOLDER}
       emptyText={S.EMPTY_NO_RESULTS}
+      errorText={S.ERROR_LOAD_FAILED}
       disabled={disabled}
       id={id}
       aria-label={S.LABEL_PROJECT}

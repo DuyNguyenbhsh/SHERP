@@ -13,6 +13,7 @@ export const PROJECT_LOOKUP_STRINGS = {
   EMPTY_NO_RESULTS: 'Không tìm thấy dự án phù hợp',
   EMPTY_TYPE_TO_SEARCH: 'Nhập để tìm kiếm dự án',
   LOADING: 'Đang tải...',
+  ERROR_LOAD_FAILED: 'Không tải được danh sách dự án. Vui lòng thử lại.',
 
   // Status badges (project lifecycle display — covers all 11 backend enum values)
   STATUS_WON_BID: 'Đã trúng thầu',
