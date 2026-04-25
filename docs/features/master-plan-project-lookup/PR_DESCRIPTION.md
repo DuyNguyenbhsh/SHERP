@@ -29,7 +29,8 @@ flowchart LR
     G4B --> G4Bfix[Gate 4B<br/>Fix pass<br/>4 commits]
     G4Bfix --> G5[Gate 5<br/>QA_SPEC<br/>1 commit]
     G5 --> SR[Self-Review<br/>Fix pass<br/>3 commits]
-    SR --> PR((This PR))
+    SR --> Final[Pre-PR<br/>Description + Backlog<br/>2 commits]
+    Final --> PR((This PR))
 
     style G1 fill:#dbeafe
     style G2 fill:#dbeafe
@@ -39,10 +40,11 @@ flowchart LR
     style G4Bfix fill:#fef3c7
     style G5 fill:#dbeafe
     style SR fill:#fef3c7
+    style Final fill:#fef3c7
     style PR fill:#a7f3d0
 ```
 
-**21 commits total** (4 docs + 1 prompt archive + 3 BE + 5 FE-initial + 4 FE-fix + 1 QA_SPEC + 3 self-review)
+**23 commits total** (4 docs + 1 prompt archive + 3 BE Gate 4A + 5 FE Gate 4B + 4 FE fix pass + 1 Gate 5 QA_SPEC + 3 self-review + 1 PR description + 1 backlog tickets)
 
 ---
 
@@ -103,12 +105,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    P[pages/MasterPlanListPage] --> F[features/master-plan<br/>MasterPlanFormDialog]
-    F --> EP[entities/project<br/>ProjectPicker wrapper]
-    EP --> S[shared/ui<br/>EntityPicker generic]
-    F --> EM[entities/master-plan<br/>useCreateMasterPlan]
-    EP -.HTTP.-> API[/projects/lookup]
-    EM -.HTTP.-> API2[/master-plan]
+    P["pages/MasterPlanListPage"] --> F["features/master-plan<br/>MasterPlanFormDialog"]
+    F --> EP["entities/project<br/>ProjectPicker wrapper"]
+    EP --> S["shared/ui<br/>EntityPicker generic"]
+    F --> EM["entities/master-plan<br/>useCreateMasterPlan"]
+    EP -.HTTP.-> API["GET /projects/lookup"]
+    EM -.HTTP.-> API2["POST /master-plan"]
 
     style S fill:#dbeafe
     style EP fill:#dcfce7
