@@ -105,7 +105,9 @@ export function LoginPage(): React.JSX.Element {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm shadow-lg">
         <CardHeader className="text-center">
-          <img src={shLogo} alt="SH Visionary" className="mx-auto mb-3 h-16 object-contain" />
+          <div className="-mx-6 -mt-6 mb-4 rounded-t-lg border-b-2 border-brand-accent/30 bg-brand-accent/5 px-6 pt-6 pb-4">
+            <img src={shLogo} alt="SH Visionary" className="mx-auto h-16 object-contain" />
+          </div>
           <CardTitle className="text-2xl text-primary">SH ERP</CardTitle>
           <CardDescription>Hệ thống Quản trị Doanh nghiệp Tổng thể</CardDescription>
         </CardHeader>

@@ -213,7 +213,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps): React.JSX.Elemen
       )}
     >
       {/* Brand logo */}
-      <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-3">
+      <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border border-l-4 border-l-brand-accent bg-brand-accent/5 px-3">
         <img
           src={shLogo}
           alt="SH Visionary"

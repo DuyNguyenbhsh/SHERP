@@ -39,6 +39,10 @@
 
   --destructive: oklch(0.50 0.20 27);
 
+  /* Brand accent — SH red-purple identity (logo) — for brand strips, hero areas, badges */
+  --brand-accent: oklch(0.50 0.20 350);
+  --brand-accent-foreground: oklch(0.99 0.002 350);
+
   /* Borders — soft cool-slate với blue undertone */
   --border: oklch(0.91 0.008 245);
   --input: oklch(0.91 0.008 245);
@@ -80,6 +84,8 @@
   --accent: oklch(0.26 0.03 250);
   --accent-foreground: oklch(0.96 0.008 250);
   --destructive: oklch(0.60 0.18 22);
+  --brand-accent: oklch(0.60 0.18 350);
+  --brand-accent-foreground: oklch(0.18 0.02 350);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.65 0.16 245);
@@ -117,6 +123,8 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-foreground: var(--brand-accent-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
