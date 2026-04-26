@@ -1,3 +1,5 @@
 export { TableActions } from './TableActions'
 export { ImportModal } from './ImportModal'
 export { QueryStateRow } from './QueryStateRow'
+export { EntityPicker } from './entity-picker'
+export type { EntityPickerProps, EntityItemBase } from './entity-picker'

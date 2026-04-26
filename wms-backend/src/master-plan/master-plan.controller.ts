@@ -49,8 +49,8 @@ export class MasterPlanController {
   @ApiResponse({ status: 201 })
   @RequirePrivilege('MANAGE_MASTER_PLAN')
   @Post()
-  create(@Body() dto: CreateMasterPlanDto) {
-    return this.service.create(dto);
+  create(@Body() dto: CreateMasterPlanDto, @Req() req: AuthenticatedRequest) {
+    return this.service.create(dto, req.user);
   }
 
   @ApiOperation({ summary: 'Danh sách Master Plan' })

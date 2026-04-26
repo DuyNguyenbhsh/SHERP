@@ -1,4 +1,6 @@
 export { useProjects } from './api/useProjects'
+export { fetchProjectById } from './api/fetchProjectById'
+export { ProjectPicker } from './ui/project-picker'
 export { useProjectSummary } from './api/useProjectSummary'
 export {
   useCreateProject,
@@ -99,6 +101,8 @@ export type {
   // Subcontractor KPI
   KpiCriterion,
   SubcontractorKpi,
+  // Lookup
+  LookupProjectItem,
 } from './types'
 export type { CreateProjectPayload, UpdateProjectPayload } from './api/useProjectMutations'
 export type { CreateAssignmentPayload } from './api/useProjectAssignments'

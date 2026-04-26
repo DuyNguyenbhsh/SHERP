@@ -142,6 +142,11 @@ export class SeedService implements OnApplicationBootstrap {
           module: 'PROJECT',
         },
         { code: 'MANAGE_PROJECTS', name: 'Quản lý Dự án', module: 'PROJECT' },
+        {
+          code: 'VIEW_ALL_PROJECTS',
+          name: 'Xem toàn bộ dự án (bỏ qua filter tổ chức)',
+          module: 'PROJECT',
+        },
 
         // Approval workflow
         {

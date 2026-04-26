@@ -456,3 +456,15 @@ export interface SubcontractorKpi {
   created_at: string
   updated_at: string
 }
+
+// ── Project Lookup (master-plan-project-lookup feature) ──
+// Contract binds GET /projects/lookup (SA_DESIGN §3.1.3, Gate 4A).
+export interface LookupProjectItem {
+  id: string
+  project_code: string
+  project_name: string
+  status: ProjectStatus
+  stage: ProjectStage
+  organization_id: string | null
+  organization_name: string | null
+}

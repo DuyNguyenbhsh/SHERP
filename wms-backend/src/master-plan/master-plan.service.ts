@@ -21,6 +21,14 @@ import {
   WbsRollupNode,
 } from './domain/logic/budget-rollup.logic';
 import { RecurrenceProducer } from './queues/recurrence.producer';
+import { Project } from '../projects/entities/project.entity';
+import { AuditLogService } from '../common/audit/audit-log.service';
+import { AuditAction } from '../common/audit/audit-log.entity';
+
+interface CreateMasterPlanUserContext {
+  userId?: string;
+  contexts?: string[];
+}
 
 const BLOCKING_WORK_ITEM_STATUSES = ['NEW', 'IN_PROGRESS'] as const;
 
@@ -32,11 +40,36 @@ export class MasterPlanService {
     @InjectRepository(WbsNode) private readonly nodeRepo: Repository<WbsNode>,
     @InjectRepository(TaskTemplate)
     private readonly tplRepo: Repository<TaskTemplate>,
+    @InjectRepository(Project)
+    private readonly projectRepo: Repository<Project>,
     private readonly recurrence: RecurrenceProducer,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
+  /**
+   * Headroom ngân sách = project.budget - Σ(active Master Plan budget) của project.
+   * Dùng cho soft warning ở bước create (BR-MPL-04, SA_DESIGN §8.3).
+   * V1 lấy từ project.budget (ticket backlog BUDGET-HEADROOM-ACCURATE-CALC cho V2).
+   */
+  private async calculateBudgetHeadroom(projectId: string): Promise<bigint> {
+    const project = await this.projectRepo.findOneBy({ id: projectId });
+    if (!project) return 0n;
+    const raw = await this.planRepo
+      .createQueryBuilder('mp')
+      .select('COALESCE(SUM(mp.budget_vnd::bigint), 0)', 'sum')
+      .where('mp.project_id = :pid', { pid: projectId })
+      .andWhere('mp.status != :closed', { closed: MasterPlanStatus.CLOSED })
+      .getRawOne<{ sum: string }>();
+    const projectBudget = BigInt(
+      project.budget !== null && project.budget !== undefined
+        ? String(project.budget).split('.')[0]
+        : '0',
+    );
+    return projectBudget - BigInt(raw?.sum ?? '0');
+  }
+
   // ── Master Plan CRUD ─────────────────────────────────────────
-  async create(dto: CreateMasterPlanDto) {
+  async create(dto: CreateMasterPlanDto, user?: CreateMasterPlanUserContext) {
     const existed = await this.planRepo.findOne({
       where: { project_id: dto.project_id, year: dto.year },
     });
@@ -45,7 +78,49 @@ export class MasterPlanService {
         `Dự án đã có Master Plan năm ${dto.year} (code ${existed.code})`,
       );
     }
-    return this.planRepo.save(this.planRepo.create(dto));
+
+    // Verify project tồn tại (phòng case lookup trả rỗng, FE bypass gửi UUID cũ).
+    const project = await this.projectRepo.findOneBy({ id: dto.project_id });
+    if (!project) {
+      throw new NotFoundException({
+        status: 'error',
+        message: 'Dự án không còn tồn tại. Vui lòng chọn lại.',
+        data: null,
+      });
+    }
+
+    const saved = await this.planRepo.save(this.planRepo.create(dto));
+
+    // Cross-org audit (SA_DESIGN §7.3). Chỉ log khi user context hợp lệ.
+    const actorContexts: string[] = user?.contexts ?? [];
+    const crossOrg = project.organization_id
+      ? !actorContexts.includes(project.organization_id)
+      : false;
+    if (crossOrg) {
+      await this.auditLogService.log({
+        action: AuditAction.CREATE,
+        entityName: 'MasterPlan',
+        entityId: saved.id,
+        reason: 'CREATE_MASTER_PLAN_CROSS_ORG',
+        newData: {
+          project_id: saved.project_id,
+          project_org_id: project.organization_id,
+          actor_contexts: actorContexts,
+        },
+      });
+    }
+
+    // Soft budget warning (non-blocking). Hard-block vẫn ở approve() (BR-MP-04).
+    const headroom = await this.calculateBudgetHeadroom(saved.project_id);
+    const planBudget = BigInt(saved.budget_vnd ?? 0);
+    const budgetWarning = planBudget > headroom;
+
+    return {
+      message: 'Đã tạo Master Plan.',
+      data: saved,
+      warning: budgetWarning || undefined,
+      headroom: budgetWarning ? headroom.toString() : undefined,
+    };
   }
 
   async findAll() {
