@@ -92,7 +92,14 @@ export function EntityPicker<T extends EntityItemBase>({
         setSelectedItem(item)
         hydratedIdRef.current = value
       })
-      .catch(() => {})
+      .catch((err: unknown) => {
+        if (cancelled) return
+        console.warn(
+          `[EntityPicker] Failed to hydrate selected item for value=${value}.`,
+          'Picker will display raw UUID until user re-selects.',
+          err,
+        )
+      })
     return () => {
       cancelled = true
     }

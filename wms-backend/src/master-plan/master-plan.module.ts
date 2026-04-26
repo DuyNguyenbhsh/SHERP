@@ -79,10 +79,18 @@ export class MasterPlanModule implements OnModuleInit {
         removeOnComplete: { age: 3600 },
       },
     );
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Timeout 5s khi add cron job')), 5000),
-    );
-    await Promise.race([addPromise, timeout]);
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('Timeout 5s khi add cron job')),
+        5000,
+      );
+    });
+    try {
+      await Promise.race([addPromise, timeout]);
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    }
     this.logger.log('Đã đăng ký repeatable job daily-scan (00:05 VN mỗi ngày)');
   }
 }
