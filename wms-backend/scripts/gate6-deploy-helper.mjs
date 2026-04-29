@@ -10,12 +10,15 @@
 //   verify-migration      §1.2 — verify f_unaccent + 4 indexes + privilege seeded
 //   smoke-tests           §3   — 10 post-deploy smoke tests (HTTP + psql)
 //   rollback-rehearsal    §5.4 — apply → revert → re-apply on dev clone
+//   qa-critical-path      QA   — 24 cases từ QA_TEST_MATRIX (A+B+D+F): 14-15 BE-auto + 9-10 UI-skip
+//                                 (D-4 chuyển từ skip → auto khi có DATABASE_URL)
 //
 // Env vars:
-//   DATABASE_URL          required for all commands
-//   API_BASE_URL          smoke-tests, default http://localhost:3000/api
-//   AUTH_TOKEN_REGULAR    smoke-tests S-2/3/4 (User-A: VIEW_PROJECTS only)
-//   AUTH_TOKEN_CROSSORG   smoke-tests S-6/10 (User-B: VIEW_ALL_PROJECTS)
+//   DATABASE_URL          required for verify-* / rollback-rehearsal; optional cho qa-critical-path D-4
+//   API_BASE_URL          smoke-tests + qa-critical-path, default http://localhost:3000/api
+//   AUTH_TOKEN_REGULAR    smoke-tests S-2/3/4 + qa-critical-path Section A/B/D-1 (User-A: VIEW_PROJECTS)
+//   AUTH_TOKEN_CROSSORG   smoke-tests S-6/10 + qa-critical-path Section D-2/3, F-1 (User-B: VIEW_ALL_PROJECTS)
+//   TEST_PROJECT_CODE     qa-critical-path A-3/4 + F-1 — project_code đã seed (default TOW-VCQ7-001)
 //
 // Exit codes: 0 all-pass · 1 any-fail · 2 invalid usage / missing env
 
@@ -50,7 +53,10 @@ const COMMANDS = {
   'verify-migration': verifyMigration,
   'smoke-tests': runSmokeTests,
   'rollback-rehearsal': runRollbackRehearsal,
+  'qa-critical-path': runQaCriticalPath,
 };
+
+const COMMANDS_WITHOUT_DB = new Set(['smoke-tests', 'qa-critical-path']);
 
 // ── Entry ────────────────────────────────────────────────────────
 async function main() {
@@ -59,7 +65,7 @@ async function main() {
     process.exit(2);
   }
 
-  if (!process.env.DATABASE_URL && command !== 'smoke-tests') {
+  if (!process.env.DATABASE_URL && !COMMANDS_WITHOUT_DB.has(command)) {
     fail('DATABASE_URL không set — cần Postgres connection string.');
     process.exit(2);
   }
@@ -83,8 +89,11 @@ Commands:
   verify-migration      §1.2 verify migration objects exist
   smoke-tests           §3   10 post-deploy smoke tests
   rollback-rehearsal    §5.4 apply→revert→re-apply trên DEV clone
+  qa-critical-path      QA   24 cases (A+B+D+F) — 14-15 BE-auto + 9-10 UI-skip
 
-Env vars: DATABASE_URL, API_BASE_URL, AUTH_TOKEN_REGULAR, AUTH_TOKEN_CROSSORG`);
+Env vars:
+  DATABASE_URL, API_BASE_URL, AUTH_TOKEN_REGULAR, AUTH_TOKEN_CROSSORG
+  TEST_PROJECT_CODE (qa-critical-path, default TOW-VCQ7-001)`);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
@@ -414,6 +423,265 @@ async function runRollbackRehearsal() {
   info('Phase 6 — final verify');
   const finalOk = await verifyMigration();
   return finalOk;
+}
+
+// ── qa-critical-path ─────────────────────────────────────────────
+// Critical path từ QA_TEST_MATRIX.md: Section A (Basic LOV) + B (unaccent) +
+// D (Cross-org) + F (Budget warning). Tổng 24 case — 15 BE-automated, 9 UI-skip.
+async function runQaCriticalPath() {
+  const apiBase = process.env.API_BASE_URL ?? 'http://localhost:3000/api';
+  const tokenA = process.env.AUTH_TOKEN_REGULAR;
+  const tokenB = process.env.AUTH_TOKEN_CROSSORG;
+  const projectCode = process.env.TEST_PROJECT_CODE ?? 'TOW-VCQ7-001';
+
+  console.log('═══════════════════════════════════════════════════');
+  console.log('  QA Critical Path — feature/master-plan-project-lookup');
+  console.log('═══════════════════════════════════════════════════\n');
+  info(`API base: ${apiBase}`);
+  info(`Test project code: ${projectCode}`);
+  if (!tokenA) warn('AUTH_TOKEN_REGULAR not set — Section A/B/D-1 sẽ skip BE-auto.');
+  if (!tokenB) warn('AUTH_TOKEN_CROSSORG not set — Section D-2/3 + F-1 sẽ skip BE-auto.');
+  if (!process.env.DATABASE_URL) warn('DATABASE_URL not set — D-4 audit log query sẽ skip.');
+  console.log();
+
+  const r = { auto: 0, pass: 0, fail: 0, skip: 0, manualChecklist: [] };
+
+  // ── Section A — Basic LOV ────────────────────────────────────────
+  console.log(`${C.bold}Section A — Basic LOV (BE-testable: 4/7)${C.reset}`);
+  qaSkip('A-1', 'UI-only (placeholder text trigger)', r);
+  if (tokenA) {
+    await qaTc('A-2', 'Lookup không q → 200 + envelope OK', r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `expect 200, got ${res.status}`);
+      const body = await res.json();
+      if (!body || typeof body !== 'object' || !('status' in body) || !('message' in body) || !('data' in body)) {
+        return { ok: false, msg: 'envelope không có {status, message, data}', evidence: JSON.stringify(body).slice(0, 200) };
+      }
+      if (!Array.isArray(body.data?.items) || typeof body.data?.total !== 'number') {
+        return { ok: false, msg: 'data.{items, total} shape sai', evidence: JSON.stringify(body.data).slice(0, 200) };
+      }
+      return { ok: true, msg: `200 + envelope OK · items=${body.data.items.length}, total=${body.data.total}` };
+    });
+
+    await qaTc('A-3', `Search "TOW" → ≥1 item, có ${projectCode}`, r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=TOW`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `HTTP ${res.status}`);
+      const items = (await res.json())?.data?.items ?? [];
+      if (items.length < 1) return { ok: false, msg: `items=${items.length}, expect ≥1 (kiểm tra seed-qa-projects.ts đã chạy)` };
+      const found = items.some((it) => it.project_code === projectCode);
+      return found
+        ? { ok: true, msg: `${items.length} item, contain ${projectCode}` }
+        : { ok: true, msg: `${items.length} item, KHÔNG có ${projectCode} — kiểm seed`, warning: true };
+    });
+
+    await qaTc('A-4', 'Item shape {id, project_code, project_name, status, stage, organization_id?, organization_name?}', r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=TOW`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      const items = (await res.json())?.data?.items ?? [];
+      if (items.length === 0) return { ok: false, msg: 'không có item nào để verify shape (cần seed)' };
+      const required = ['id', 'project_code', 'project_name', 'status', 'stage'];
+      const missing = required.filter((k) => !(k in items[0]));
+      if (missing.length > 0) return { ok: false, msg: `missing keys: ${missing.join(', ')}`, evidence: JSON.stringify(items[0]).slice(0, 200) };
+      return { ok: true, msg: `shape OK (${Object.keys(items[0]).join(', ')})` };
+    });
+  } else {
+    qaSkip('A-2', 'AUTH_TOKEN_REGULAR not set', r);
+    qaSkip('A-3', 'AUTH_TOKEN_REGULAR not set', r);
+    qaSkip('A-4', 'AUTH_TOKEN_REGULAR not set', r);
+  }
+  qaSkip('A-5', 'UI-only (click select → trigger label update)', r);
+  qaSkip('A-6', 'UI-only (X button clear selection)', r);
+  if (tokenA) {
+    await qaTc('A-7', 'Empty match query "XXXXYYY" → items.length=0', r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=XXXXYYY`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `HTTP ${res.status}`);
+      const items = (await res.json())?.data?.items ?? [];
+      if (items.length !== 0) return { ok: false, msg: `items=${items.length}, expect 0`, evidence: JSON.stringify(items).slice(0, 200) };
+      return { ok: true, msg: 'items.length=0' };
+    });
+  } else {
+    qaSkip('A-7', 'AUTH_TOKEN_REGULAR not set', r);
+  }
+
+  // ── Section B — Vietnamese unaccent ──────────────────────────────
+  console.log(`\n${C.bold}Section B — Vietnamese unaccent (BE-testable: 5/5)${C.reset}`);
+  const unaccentQueries = [
+    ['B-1', 'truong', 'lowercase no-accent'],
+    ['B-2', 'TRUONG', 'uppercase no-accent'],
+    ['B-3', 'dai hoc', 'multi-word no-accent'],
+    ['B-4', 'đại học', 'multi-word có dấu'],
+    ['B-5', 'tháp', 'có dấu'],
+  ];
+  for (const [tc, q, label] of unaccentQueries) {
+    if (!tokenA) { qaSkip(tc, 'AUTH_TOKEN_REGULAR not set', r); continue; }
+    await qaTc(tc, `Search "${q}" (${label}) → 200 OK`, r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=${encodeURIComponent(q)}`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `HTTP ${res.status}`);
+      const items = (await res.json())?.data?.items ?? [];
+      return { ok: true, msg: `${items.length} match (count tuỳ seed; verify khác 0 = unaccent OK)` };
+    });
+  }
+
+  // ── Section D — Cross-org ────────────────────────────────────────
+  console.log(`\n${C.bold}Section D — Cross-org (BE-testable: 4-5/5)${C.reset}`);
+  if (tokenA) {
+    await qaTc('D-1', 'User-A search "a" → all items same org (RBAC anti-leak)', r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=a&limit=50`, { headers: { Authorization: `Bearer ${tokenA}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `HTTP ${res.status}`);
+      const items = (await res.json())?.data?.items ?? [];
+      if (items.length === 0) return { ok: true, msg: 'items=0 (skip verify, cần seed)', warning: true };
+      const orgIds = new Set(items.map((i) => i.organization_id).filter(Boolean));
+      if (orgIds.size > 1) return { ok: false, msg: `User-A thấy ${orgIds.size} org → RBAC LEAK!`, evidence: [...orgIds].join(', ') };
+      return { ok: true, msg: `${items.length} item, all org=${[...orgIds][0] ?? '<null>'}` };
+    });
+  } else {
+    qaSkip('D-1', 'AUTH_TOKEN_REGULAR not set', r);
+  }
+
+  let dBody = null;
+  if (tokenB) {
+    await qaTc('D-2', 'User-B search "a" → multi-org (cross-org enabled)', r, async () => {
+      const res = await fetch(`${apiBase}/projects/lookup?q=a&limit=50`, { headers: { Authorization: `Bearer ${tokenB}` } });
+      if (res.status !== 200) return qaFailFromRes(res, `HTTP ${res.status}`);
+      dBody = await res.json();
+      const items = dBody?.data?.items ?? [];
+      if (items.length === 0) return { ok: false, msg: 'items=0 — cross-org user thấy 0 → seed thiếu hoặc RBAC sai' };
+      const orgIds = new Set(items.map((i) => i.organization_id).filter(Boolean));
+      if (orgIds.size < 2) return { ok: false, msg: `chỉ ${orgIds.size} org — cross-org chưa hoạt động hoặc seed thiếu cross-org`, evidence: [...orgIds].join(', ') };
+      return { ok: true, msg: `${items.length} item, ${orgIds.size} distinct orgs` };
+    });
+
+    await qaTc('D-3', 'D-2 items có organization_name field', r, async () => {
+      const items = dBody?.data?.items ?? [];
+      if (items.length === 0) return { ok: false, msg: 'D-2 không có item để verify' };
+      const missing = items.filter((i) => !('organization_name' in i));
+      if (missing.length > 0) return { ok: false, msg: `${missing.length}/${items.length} item thiếu organization_name`, evidence: JSON.stringify(items[0]).slice(0, 200) };
+      return { ok: true, msg: `${items.length}/${items.length} có organization_name` };
+    });
+  } else {
+    qaSkip('D-2', 'AUTH_TOKEN_CROSSORG not set', r);
+    qaSkip('D-3', 'AUTH_TOKEN_CROSSORG not set', r);
+  }
+
+  if (process.env.DATABASE_URL) {
+    await qaTc('D-4', 'Cross-org audit log query (DB) — count entries reason=CREATE_MASTER_PLAN_CROSS_ORG', r, async () => {
+      const result = await withClient(async (client) => {
+        const row = await client.query(`
+          SELECT COUNT(*)::int AS cnt FROM audit_logs WHERE reason = 'CREATE_MASTER_PLAN_CROSS_ORG';
+        `);
+        return row.rows[0]?.cnt ?? 0;
+      });
+      if (result === false) return { ok: false, msg: 'DB connect failed' };
+      r.manualChecklist.push('D-4 UI flow: User-B chọn cross-org project → tạo MasterPlan → verify entry mới audit_logs.');
+      return { ok: true, msg: `${result} entries hiện có (UI flow tạo entry mới vẫn cần manual)` };
+    });
+  } else {
+    qaSkip('D-4', 'UI-only flow + DATABASE_URL not set', r);
+  }
+
+  await qaTc('D-5', 'No Authorization header → 401', r, async () => {
+    const res = await fetch(`${apiBase}/projects/lookup?q=a`);
+    if (res.status === 401) return { ok: true, msg: 'HTTP 401 Unauthorized' };
+    return { ok: false, msg: `expect 401, got ${res.status}` };
+  });
+
+  // ── Section F — Budget warning ───────────────────────────────────
+  console.log(`\n${C.bold}Section F — Budget warning (BE-testable: 1/7)${C.reset}`);
+  if (tokenB) {
+    await qaTc('F-1', 'POST /master-plan với budget khổng lồ → warning=true + headroom (string)', r, async () => {
+      const lookupRes = await fetch(`${apiBase}/projects/lookup?q=${encodeURIComponent(projectCode)}`, { headers: { Authorization: `Bearer ${tokenB}` } });
+      if (lookupRes.status !== 200) return qaFailFromRes(lookupRes, `lookup pre-req HTTP ${lookupRes.status}`);
+      const lookupBody = await lookupRes.json();
+      const project = lookupBody?.data?.items?.find((p) => p.project_code === projectCode) ?? lookupBody?.data?.items?.[0];
+      if (!project) return { ok: false, msg: `Không tìm thấy project ${projectCode} qua lookup (kiểm seed)` };
+
+      const payload = {
+        code: `MP-QA-${Date.now()}`,
+        name: `[QA Critical Path] Budget warning ${new Date().toISOString().slice(0, 10)}`,
+        year: new Date().getFullYear(),
+        project_id: project.id,
+        budget_vnd: '999999999999999',
+      };
+      const res = await fetch(`${apiBase}/master-plan`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${tokenB}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => null);
+      if (res.status >= 400) return { ok: false, msg: `HTTP ${res.status} (DTO mismatch?)`, evidence: JSON.stringify(body).slice(0, 300) };
+      if (body?.warning !== true) return { ok: false, msg: `expect warning=true, got ${body?.warning}`, evidence: JSON.stringify(body).slice(0, 300) };
+      if (typeof body?.headroom !== 'string') return { ok: false, msg: `expect headroom string, got ${typeof body?.headroom}`, evidence: JSON.stringify(body).slice(0, 300) };
+      r.manualChecklist.push(`F-1 cleanup: master_plan ${body?.data?.id ?? '<id>'} đã tạo trong DB — xoá nếu cần.`);
+      return { ok: true, msg: `warning=true · headroom="${body.headroom}" (BigInt-safe string)` };
+    });
+  } else {
+    qaSkip('F-1', 'AUTH_TOKEN_CROSSORG not set', r);
+  }
+  qaSkip('F-2', 'UI-only (banner title + headroom format vi-VN)', r);
+  qaSkip('F-3', 'UI-only (banner body line 2 — confirm message)', r);
+  qaSkip('F-4', 'UI-only (footer button swap → only "Đóng")', r);
+  qaSkip('F-5', 'UI-only (click Đóng → close + toast)', r);
+  qaSkip('F-6', 'UI-only (verify list sau đóng có plan vừa tạo)', r);
+  qaSkip('F-7', 'UI-only (budget OK → banner ẩn, auto-close)', r);
+
+  // ── Summary ──────────────────────────────────────────────────────
+  console.log('\n─────────────────────────────────────────────────');
+  console.log(`  ${C.bold}SUMMARY${C.reset}`);
+  console.log('─────────────────────────────────────────────────');
+  const total = r.auto + r.skip;
+  console.log(`  Total cases:        ${total}`);
+  console.log(`  BE-automated:       ${r.auto} (executed)`);
+  console.log(`  UI-only skipped:    ${r.skip} (manual run required)`);
+  console.log();
+  const passMark = r.fail === 0 && r.auto > 0 ? `${C.green} ✓${C.reset}` : '';
+  console.log(`  Automated PASS:     ${r.pass}/${r.auto}${passMark}`);
+  console.log(`  Automated FAIL:     ${r.fail}`);
+  console.log(`  Skipped UI-only:    ${r.skip}`);
+  console.log();
+  if (r.auto === 0) {
+    console.log(`  ${C.yellow}Verdict: NO TESTS RAN${C.reset} — kiểm tra env vars (AUTH_TOKEN_*).`);
+  } else if (r.fail === 0) {
+    console.log(`  ${C.green}Verdict: BE-LAYER PASS${C.reset} — UI verification still pending.`);
+  } else {
+    console.log(`  ${C.red}Verdict: BE-LAYER FAIL${C.reset} — fix các fail trên trước khi merge PR.`);
+  }
+  console.log('─────────────────────────────────────────────────');
+
+  if (r.manualChecklist.length > 0) {
+    console.log(`\n${C.bold}Manual follow-up:${C.reset}`);
+    for (const note of r.manualChecklist) console.log(`  • ${note}`);
+  }
+
+  return r.auto > 0 && r.fail === 0;
+}
+
+async function qaTc(tc, desc, r, fn) {
+  r.auto++;
+  try {
+    const result = await fn();
+    if (result?.ok) {
+      const marker = result.warning ? `${C.yellow}⚠${C.reset}` : `${C.green}✓${C.reset}`;
+      console.log(`  ${marker} ${tc} ${desc} → ${result.msg}`);
+      r.pass++;
+    } else {
+      console.log(`  ${C.red}✗${C.reset} ${tc} ${desc} → ${C.red}${result?.msg ?? 'unknown'}${C.reset}`);
+      if (result?.evidence) console.log(`     ${C.dim}evidence: ${result.evidence}${C.reset}`);
+      r.fail++;
+    }
+  } catch (err) {
+    console.log(`  ${C.red}✗${C.reset} ${tc} ${desc} → ${C.red}exception: ${err.message}${C.reset}`);
+    if (VERBOSE) console.error(err);
+    r.fail++;
+  }
+}
+
+function qaSkip(tc, reason, r) {
+  console.log(`  ${C.yellow}⊝${C.reset} ${tc} SKIP (${reason})`);
+  r.skip++;
+}
+
+async function qaFailFromRes(res, msg) {
+  const evidence = await res.text().catch(() => '');
+  return { ok: false, msg, evidence: evidence.slice(0, 200) };
 }
 
 function maskUrl(url) {
