@@ -61,3 +61,22 @@ Follow-up tickets phát sinh từ các pass audit (review session, /ultrareview,
 
 **Effort:** 0.5-1 ngày
 **Note:** Liên quan ticket BACKEND-RATE-LIMIT-AUDIT — có thể merge thành 1 task
+
+---
+
+## R-017-MCP-PG-PACKAGE-COMMUNITY-DEPENDENCY
+**Severity:** Low
+**Source:** MCP Postgres setup 2026-05-09 — `mcp-postgres@latest` (community maintained)
+**Description:** Đang dùng `mcp-postgres` package từ developer cá nhân (kristofer84, npm publish 2026-03-20). Active hiện tại nhưng:
+- Không phải Anthropic official package
+- `@modelcontextprotocol/server-postgres` (official) đã DEPRECATED — npm warn "Package no longer supported"
+- Risk: dev có thể abandon package, không có SLA
+
+**Mitigation hiện tại:** Chỉ dùng cho dev workflow (Tech Advisor + IT Audit query verification), không phải production runtime. Nếu package stop work, fallback về paste-output manual.
+
+**Monitor:**
+- Quarterly check npm publish history của `mcp-postgres`
+- Watch GitHub releases của Anthropic cho official Postgres MCP successor
+- Khi có official → migrate
+
+**Effort migration future:** 30 phút (chỉ đổi `args` trong `.mcp.json`)
