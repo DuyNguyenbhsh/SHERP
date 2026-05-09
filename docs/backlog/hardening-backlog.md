@@ -24,3 +24,40 @@ Follow-up tickets phát sinh từ các pass audit (review session, /ultrareview,
 **Impact:** Consistency, maintainability
 **Effort:** 2-3h
 **Note:** Tech Advisor đã ghi nhận overlap khi review b883ae7. Không scope cho feature/master-plan-project-lookup.
+
+---
+
+## QA-A3-500-INTERNAL-ERROR
+**Severity:** High
+**Source:** Wave 1 Batch 1.3 attempt 2026-05-09 — gate6-deploy-helper qa-critical-path
+**Description:** Khi chạy `GET /projects/lookup?q=TOW` (test case A-3), backend trả HTTP 500 Internal Error thay vì 200 OK với items array.
+
+**Cần investigate:**
+- BE log lúc đó có stack trace gì
+- Có phải do `f_unaccent` function chưa được tạo trong test DB không (migration chưa run)?
+- Có phải pg_trgm extension chưa enable không?
+- Có phải seed script chưa tạo project có `project_code` chứa "TOW" không?
+
+**Steps to reproduce:**
+1. Start backend local
+2. Login user qa_regular, mint JWT
+3. curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/api/projects/lookup?q=TOW"
+4. Observe HTTP 500
+
+**Impact:** Blocker cho Pre-Deploy QA verification — phải fix trước Gate 6 deploy
+**Effort:** 1-2h investigate + 1-2h fix tùy root cause
+
+---
+
+## QA-THROTTLER-429-ON-LOOKUP
+**Severity:** Medium
+**Source:** Wave 1 Batch 1.3 attempt 2026-05-09
+**Description:** Khi chạy QA helper batch test trên `/projects/lookup`, throttler trả 429 Too Many Requests sau ~10-20 requests liên tiếp. Config rate limiter quá chặt cho QA load testing.
+
+**Options resolution:**
+- **A.** Tăng rate limit cho `/projects/lookup` lên 100 req/phút (vẫn bảo vệ DoS)
+- **B.** Thêm flag `BYPASS_THROTTLER_FOR_QA=true` trong env, throttler skip khi thấy
+- **C.** QA helper script tự sleep 1s giữa mỗi request (slow & steady)
+
+**Effort:** 0.5-1 ngày
+**Note:** Liên quan ticket BACKEND-RATE-LIMIT-AUDIT — có thể merge thành 1 task
