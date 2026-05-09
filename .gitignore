@@ -10,3 +10,9 @@ wms-frontend/package-lock.json
 # Local DB backups — không commit vào repo
 backups/
 *.sql.gz
+
+# QA EMD operational checklist templates (binary xlsx — not source-controlled)
+# docs/reference/Checklist/ chứa TECH_WEEKLY/MONTHLY/QUARTERLY/BI_QUARTERLY/YEARLY
+# templates do ops team duy trì — sync qua shared drive, không thuộc git history.
+docs/reference/Checklist/**/*.xlsx
+docs/reference/Checklist/**/*.xls

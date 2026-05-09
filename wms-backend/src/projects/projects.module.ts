@@ -26,6 +26,7 @@ import { WorkItemMaster } from './entities/work-item-master.entity';
 import { SubcontractorKpi } from './entities/subcontractor-kpi.entity';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
+import { ProjectLookupService } from './project-lookup.service';
 import { ProjectHistoryService } from './project-history.service';
 import { ProjectSubscriber } from './project.subscriber';
 import { ProjectWbsService } from './project-wbs.service';
@@ -71,6 +72,7 @@ import { PROJECT_REPO } from './domain/ports';
   controllers: [ProjectsController],
   providers: [
     ProjectsService,
+    ProjectLookupService,
     ProjectHistoryService,
     ProjectSubscriber,
     ProjectWbsService,
@@ -87,6 +89,7 @@ import { PROJECT_REPO } from './domain/ports';
   ],
   exports: [
     ProjectsService,
+    ProjectLookupService,
     ProjectHistoryService,
     ProjectBoqService,
     ProjectNcrService,

@@ -39,12 +39,30 @@ export function useMasterPlan(id: string | null) {
   })
 }
 
+/**
+ * Result shape for useCreateMasterPlan — preserves envelope-level
+ * warning + headroom fields from Gate 4A backend extension.
+ */
+export interface CreateMasterPlanResult {
+  plan: MasterPlan
+  /** True if plan budget exceeds project headroom (non-blocking UI banner). */
+  warning?: boolean
+  /** VND bigint string of remaining headroom. Use BigInt() to parse safely. */
+  headroom?: string
+}
+
 export function useCreateMasterPlan() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (payload: CreateMasterPlanPayload) => {
-      const { data } = await api.post<ApiResponse<MasterPlan>>('/master-plan', payload)
-      return data.data
+    mutationFn: async (payload: CreateMasterPlanPayload): Promise<CreateMasterPlanResult> => {
+      const { data } = await api.post<
+        ApiResponse<MasterPlan> & { warning?: boolean; headroom?: string }
+      >('/master-plan', payload)
+      return {
+        plan: data.data,
+        warning: data.warning,
+        headroom: data.headroom,
+      }
     },
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['master-plan'] }),
   })

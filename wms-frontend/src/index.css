@@ -39,6 +39,14 @@
 
   --destructive: oklch(0.50 0.20 27);
 
+  /* Warning (amber) — banner + soft alert */
+  --warning: oklch(0.72 0.15 75);
+  --warning-foreground: oklch(0.22 0.02 75);
+
+  /* Success (green) — positive state */
+  --success: oklch(0.60 0.14 150);
+  --success-foreground: oklch(0.98 0.005 150);
+
   /* Borders — soft cool-slate với blue undertone */
   --border: oklch(0.91 0.008 245);
   --input: oklch(0.91 0.008 245);
@@ -80,6 +88,10 @@
   --accent: oklch(0.26 0.03 250);
   --accent-foreground: oklch(0.96 0.008 250);
   --destructive: oklch(0.60 0.18 22);
+  --warning: oklch(0.75 0.14 75);
+  --warning-foreground: oklch(0.18 0.02 75);
+  --success: oklch(0.65 0.13 150);
+  --success-foreground: oklch(0.18 0.02 150);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.65 0.16 245);
@@ -117,6 +129,10 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

@@ -25,8 +25,10 @@ import {
   ApiQuery,
   ApiConsumes,
   ApiBody,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
+import { ProjectLookupService } from './project-lookup.service';
 import { ProjectWbsService } from './project-wbs.service';
 import { ProjectBoqService } from './project-boq.service';
 import { ProjectEvmService } from './project-evm.service';
@@ -36,6 +38,10 @@ import { WorkItemService } from './work-item.service';
 import { SubcontractorKpiService } from './subcontractor-kpi.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import {
+  LookupProjectsDto,
+  LookupProjectsResponseDto,
+} from './dto/lookup-projects.dto';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { CreateCostCategoryDto } from './dto/create-cost-category.dto';
@@ -74,6 +80,7 @@ import { AuditInterceptor } from '../shared/audit/audit.interceptor';
 export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
+    private readonly projectLookupService: ProjectLookupService,
     private readonly wbsService: ProjectWbsService,
     private readonly boqService: ProjectBoqService,
     private readonly evmService: ProjectEvmService,
@@ -170,6 +177,19 @@ export class ProjectsController {
   @Get('status-transitions/:status')
   getTransitions(@Param('status') status: string) {
     return this.projectsService.getAllowedTransitions(status);
+  }
+
+  // ══════════════════════════════════════════
+  // LOOKUP (LOV cho picker UI — master-plan-project-lookup feature)
+  // Phải đặt TRƯỚC @Get(':id') để tránh Nest match "lookup" thành id.
+  // ══════════════════════════════════════════
+
+  @ApiOperation({ summary: 'Tìm kiếm dự án (LOV) cho picker UI' })
+  @ApiResponse({ status: 200, type: LookupProjectsResponseDto })
+  @RequirePrivilege('VIEW_PROJECTS', 'VIEW_ALL_PROJECTS')
+  @Get('lookup')
+  lookup(@Query() dto: LookupProjectsDto, @Req() req: AuthenticatedRequest) {
+    return this.projectLookupService.search(dto, req.user);
   }
 
   @ApiOperation({ summary: 'Chi tiết dự án' })
