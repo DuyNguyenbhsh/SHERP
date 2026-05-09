@@ -80,14 +80,18 @@ export class AuthController {
   })
   @HttpCode(200)
   @Post('refresh')
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: any) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const refreshToken = req.cookies?.[REFRESH_COOKIE];
     if (!refreshToken) {
-      return res.status(401).json({
+      res.status(401).json({
         status: false,
         message: 'Không tìm thấy refresh token',
         data: null,
       });
+      return;
     }
 
     const ip = req.ip || req.socket?.remoteAddress;

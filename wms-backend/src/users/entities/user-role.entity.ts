@@ -21,5 +21,5 @@ export class UserRole {
   // 3. Cột nối Organization
   @ManyToOne(() => Organization, { nullable: true })
   @JoinColumn({ name: 'organization_id' })
-  organization: Organization;
+  organization: Organization | null;
 }

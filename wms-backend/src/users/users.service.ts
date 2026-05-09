@@ -145,7 +145,7 @@ export class UsersService {
     if (updateData.role_id) {
       try {
         // Xóa toàn bộ quyền cũ của User này
-        await this.userRepo.manager.delete('UserRole', {
+        await this.userRepo.manager.delete(UserRole, {
           user: { id: user.id },
         });
 
@@ -156,7 +156,7 @@ export class UsersService {
         });
 
         // Gắn quyền mới bằng TypeORM cho an toàn tuyệt đối
-        await this.userRepo.manager.save('UserRole', {
+        await this.userRepo.manager.save(UserRole, {
           user: { id: user.id },
           role: { id: updateData.role_id },
           organization: fullUser?.employee?.department || null,
@@ -270,10 +270,10 @@ export class UsersService {
           // Chỉ cập nhật role nếu có
           const roleName = row.role_name as string;
           if (roleName && roleMap.has(roleName)) {
-            await this.userRepo.manager.delete('UserRole', {
+            await this.userRepo.manager.delete(UserRole, {
               user: { id: existing.id },
             });
-            await this.userRepo.manager.save('UserRole', {
+            await this.userRepo.manager.save(UserRole, {
               user: { id: existing.id },
               role: { id: roleMap.get(roleName) },
             });

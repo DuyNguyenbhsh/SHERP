@@ -26,7 +26,7 @@ export class MasterDataController {
 
   @RequirePrivilege('MANAGE_MASTER_DATA')
   @Post(':type')
-  create(@Param('type') type: string, @Body() body: any) {
+  create(@Param('type') type: string, @Body() body: Record<string, unknown>) {
     return this.service.create(type, body);
   }
 
@@ -35,7 +35,7 @@ export class MasterDataController {
   update(
     @Param('type') type: string,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: Record<string, unknown>,
   ) {
     return this.service.update(type, id, body);
   }

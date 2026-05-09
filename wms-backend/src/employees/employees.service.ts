@@ -9,6 +9,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Employee } from '../users/entities/employee.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { ExcelService, type ExcelColumnDef } from '../shared/excel';
 import { AuditLogService } from '../common/audit/audit-log.service';
@@ -99,7 +100,7 @@ export class EmployeesService {
   }
 
   // 3. SỬA THÔNG TIN (có Audit Log + Diffing)
-  async update(id: string, updateDto: any) {
+  async update(id: string, updateDto: UpdateEmployeeDto) {
     const emp = await this.employeeRepo.findOne({ where: { id } });
     if (!emp) throw new NotFoundException('Nhân viên không tồn tại');
 
